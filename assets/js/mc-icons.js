@@ -2,8 +2,9 @@ import { html } from "htm/preact";
 
 /** 本地原版贴图（minecraft-assets），见 assets/img/ATTRIBUTION.txt */
 export const IMG = {
-  guiAnvil: "./assets/img/gui_anvil.png",
+  guiAnvil: "./assets/img/gui_anvil.png?v=3",
   guiEnchant: "./assets/img/gui_enchant.png",
+  enchantBook: "./assets/img/enchant_book_gui.png",
   iconAnvil: "./assets/img/icon_anvil.png",
   iconEnchant: "./assets/img/icon_enchant.png",
   iconGrass: "./assets/img/icon_grass.png",

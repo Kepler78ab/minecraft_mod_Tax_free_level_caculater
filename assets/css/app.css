@@ -342,6 +342,10 @@ button:disabled {
   place-items: center;
   pointer-events: none;
   line-height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
 }
 
 .gui-slot-item {
@@ -350,20 +354,42 @@ button:disabled {
   height: 100%;
 }
 
+.gui-slot-clickable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.gui-slot-clickable:hover {
+  outline: 1px solid #80ff20;
+  outline-offset: 1px;
+}
+
+.gui-slot-fly .gui-slot-item {
+  animation: gui-item-fly 0.28s ease-out forwards;
+}
+
+@keyframes gui-item-fly {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(28px, -36px) scale(1.15);
+    opacity: 0.15;
+  }
+}
+
 .gui-name-field {
   position: absolute;
-  display: flex;
-  align-items: center;
-  padding: 0 4px;
-  color: #e0e0e0;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-shadow: 1px 1px 0 #000;
+  box-sizing: border-box;
+  display: block;
+  background: #000;
+  color: #fff;
+  font-weight: 400;
+  letter-spacing: 0;
   overflow: hidden;
   white-space: nowrap;
   pointer-events: none;
-  background: transparent;
 }
 
 .gui-cost-label {
@@ -393,6 +419,12 @@ button:disabled {
   border-color: #c8b4ff;
 }
 
+.gui-enchant-book {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .gui-enchant-lapis,
 .gui-enchant-runes,
 .gui-enchant-lv {
@@ -404,13 +436,46 @@ button:disabled {
   overflow: hidden;
 }
 
-.gui-enchant-lv {
+.gui-enchant-lv,
+.gui-enchant-lv-input {
   color: #80ff20;
   font-family: Consolas, "Courier New", monospace;
   font-size: 14px;
   font-weight: 700;
   line-height: 1;
   text-shadow: 1px 1px 0 #000;
+}
+
+.gui-enchant-lv-input {
+  position: absolute;
+  width: 36px;
+  padding: 0 2px;
+  margin: 0;
+  border: 1px solid transparent;
+  background: #00000088;
+  text-align: right;
+  z-index: 2;
+  -moz-appearance: textfield;
+}
+
+.gui-enchant-lv-input::-webkit-outer-spin-button,
+.gui-enchant-lv-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.gui-enchant-lv-input:focus {
+  border-color: #80ff20;
+  outline: none;
+}
+
+.gui-enchant-lapis {
+  display: grid;
+  place-items: center;
+}
+
+.gui-enchant-lapis-stack {
+  grid-area: 1 / 1;
 }
 
 .sga-text {
@@ -466,29 +531,130 @@ button:disabled {
   font-size: 0.82rem;
   color: var(--muted, #9aa7b8);
   line-height: 1.4;
-  max-width: 352px;
+  max-width: 364px;
 }
 
-.mc-gui-actions {
+.level-xp-control {
+  width: 100%;
+  max-width: 364px;
   display: grid;
-  grid-template-columns: 1fr 1.4fr;
+  gap: 6px;
+}
+
+.level-xp-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.level-xp-prog {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.level-xp-prog input {
+  width: 64px;
+  background: #0d1118;
+  color: #fff;
+  border: 1px solid #3a4658;
+  padding: 4px 6px;
+  font: inherit;
+}
+
+.level-xp-need {
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-xp-editable .mc-xp-level-input {
+  position: relative;
+  z-index: 1;
+  margin-bottom: -2px;
+  width: 56px;
+  text-align: center;
+  color: #80ff20;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  text-shadow:
+    1px 0 0 #000,
+    -1px 0 0 #000,
+    0 1px 0 #000,
+    0 -1px 0 #000;
+  -moz-appearance: textfield;
+}
+
+.mc-xp-editable .mc-xp-level-input::-webkit-outer-spin-button,
+.mc-xp-editable .mc-xp-level-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.mc-xp-editable .mc-xp-level-input:focus {
+  border-color: #80ff20;
+  outline: none;
+  background: #00000066;
+}
+
+.mc-xp-track-drag {
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.cost-bottle-row {
+  display: flex;
+  align-items: center;
   gap: 8px;
   width: 100%;
-  max-width: 352px;
+  max-width: 364px;
 }
 
-.mc-primary {
-  background: #3c8527;
+.cost-bottle-x {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cost-bottle-input {
+  width: 64px;
+  background: #0d1118;
   color: #fff;
-  border: 2px solid #1d4c12;
+  border: 1px solid #3a4658;
+  padding: 6px 8px;
+  font: inherit;
   font-weight: 700;
 }
 
-.mc-secondary {
-  background: #3a4658;
-  color: #e8eef7;
-  border: 2px solid #1a2230;
-  font-weight: 650;
+.cost-bottle-hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.enchant-req-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 364px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.enchant-req-field input {
+  width: 72px;
+  background: #0d1118;
+  color: #fff;
+  border: 1px solid #3a4658;
+  padding: 4px 6px;
+  font: inherit;
 }
 
 .xp-demo {

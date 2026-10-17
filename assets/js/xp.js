@@ -45,6 +45,27 @@ export function maxProgressAtLevel(level) {
   return Math.max(0, xpToNext(level) - 1);
 }
 
+/** 将进度钳制到本级合法范围 [0, xpToNext(level)-1] */
+export function clampProgress(level, progress) {
+  const max = maxProgressAtLevel(level);
+  const p = Number(progress);
+  if (!Number.isFinite(p) || p < 0) return 0;
+  return Math.min(max, Math.floor(p));
+}
+
+/**
+ * 单点进度扣费（Tab1 主结果）。
+ * @returns {{ exact, start, end, pay }}
+ */
+export function applyAtProgress(curLevel, progress, costLevels, mode, enchantReq = 30) {
+  const pay = modPayXp(costLevels, mode, enchantReq);
+  const prog = clampProgress(curLevel, progress);
+  const exact = applyDeduction(curLevel, prog, pay);
+  const start = applyDeduction(curLevel, 0, pay);
+  const end = applyDeduction(curLevel, maxProgressAtLevel(curLevel), pay);
+  return { exact, start, end, pay };
+}
+
 export function modPayXp(costLevels, mode, enchantReq = 30) {
   if (costLevels < 0) throw new Error("cost_neg");
   if (mode === MODE_ANVIL) return totalXp(costLevels) - totalXp(0);
@@ -149,5 +170,8 @@ export function selfCheck() {
   const c = buildCurveSeries(10, 12, 3, MODE_ANVIL, 30);
   if (c.xs.join(",") !== "10,11,12") return "buildCurveSeries xs failed";
   if (c.yVanilla.join(",") !== "7,8,9") return "buildCurveSeries vanilla failed";
+  const a = applyAtProgress(46, 0, 3, MODE_ANVIL, 30);
+  if (a.exact.afterLevel !== a.start.afterLevel) return "applyAtProgress start mismatch";
+  if (a.pay !== modPayXp(3, MODE_ANVIL)) return "applyAtProgress pay mismatch";
   return null;
 }

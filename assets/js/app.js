@@ -18,8 +18,10 @@ import {
 import {
   MODE_ANVIL,
   MODE_ENCHANT,
+  applyAtProgress,
   buildCurveSeries,
   buildLevelHLines,
+  clampProgress,
   computeBoundaries,
   levelAndProgressFromTotal,
   maxProgressAtLevel,
@@ -74,20 +76,27 @@ function fmtBlock(t, headerKey, r) {
   );
 }
 
-function buildResultText(t, curLevel, cost, mode, enchantReq, start, end, pay) {
+function progressPctOf(level, progress) {
+  const need = xpToNext(level);
+  if (need <= 0) return 0;
+  return Math.max(0, Math.min(100, (Number(progress) / need) * 100));
+}
+
+function buildResultText(t, curLevel, progress, cost, mode, enchantReq, exact, start, end, pay) {
   const avgDeltaLevel = (start.deltaLevel + end.deltaLevel) / 2;
   const avgDeltaProgress = (start.deltaProgress + end.deltaProgress) / 2;
   const avgSpent = (start.actualSpent + end.actualSpent) / 2;
   const avgAfterTotal = (start.afterTotal + end.afterTotal) / 2;
   const remain = levelAndProgressFromTotal(Math.round(avgAfterTotal));
   const noModAfter = Math.max(0, curLevel - cost);
-  const withModAvg = (start.afterLevel + end.afterLevel) / 2;
+  const withModExact = exact.afterLevel;
   const modeLabel = t(`mode.${mode}`);
 
   const lines = [
     t("result.header"),
     t("result.mode", { mode: modeLabel }),
     t("result.level_cost", { level: curLevel, cost }),
+    t("result.progress", { progress, need: xpToNext(curLevel) }),
   ];
   if (mode === MODE_ENCHANT) {
     lines.push(t("result.enchant_req", { req: enchantReq }));
@@ -99,6 +108,9 @@ function buildResultText(t, curLevel, cost, mode, enchantReq, start, end, pay) {
       endProg: maxProgressAtLevel(curLevel),
     }),
     "",
+    fmtBlock(t, "result.exact_header", exact),
+    "",
+    t("result.boundary_ref"),
     fmtBlock(t, "result.start_header", start),
     "",
     fmtBlock(t, "result.end_header", end),
@@ -119,14 +131,12 @@ function buildResultText(t, curLevel, cost, mode, enchantReq, start, end, pay) {
       cost,
       delta: curLevel - noModAfter,
     }),
-    t("result.compare_mod", {
-      avg: withModAvg.toFixed(2),
-      start: start.afterLevel,
-      end: end.afterLevel,
-      delta: avgDeltaLevel.toFixed(2),
+    t("result.compare_mod_exact", {
+      after: withModExact,
+      delta: exact.deltaLevel,
     }),
     t("result.compare_diff", {
-      diff: (withModAvg - noModAfter).toFixed(2),
+      diff: (withModExact - noModAfter).toFixed(2),
     }),
     t("result.footer"),
   );
@@ -541,7 +551,7 @@ function ModePicker({ t, mode, setMode }) {
   `;
 }
 
-/** 原版 HUD 经验条 + 绿色等级数字（贴图来自 icons.png 裁切） */
+/** 原版 HUD 经验条（只读展示） */
 function McXpBar({ level, progressPct, hint, scale = 2 }) {
   const pct = Math.max(0, Math.min(100, Number(progressPct) || 0));
   const w = XP_BAR_W * scale;
@@ -567,6 +577,109 @@ function McXpBar({ level, progressPct, hint, scale = 2 }) {
               backgroundSize: `${w}px ${h}px`,
             }}
           ></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/** 可编辑等级 + 可拖经验条 + 进度 XP 输入 */
+function LevelXpControl({ t, level, setLevel, progress, setProgress, scale = 2 }) {
+  const trackRef = useRef(null);
+  const dragging = useRef(false);
+  const lvNum = Math.max(0, Number(level) || 0);
+  const need = xpToNext(lvNum);
+  const maxP = maxProgressAtLevel(lvNum);
+  const prog = clampProgress(lvNum, progress);
+  const pct = progressPctOf(lvNum, prog);
+  const w = XP_BAR_W * scale;
+  const h = XP_BAR_H * scale;
+
+  function setProgFromClientX(clientX) {
+    const el = trackRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
+    setProgress(Math.round(ratio * need));
+  }
+
+  useEffect(() => {
+    function onMove(e) {
+      if (!dragging.current) return;
+      setProgFromClientX(e.clientX);
+    }
+    function onUp() {
+      dragging.current = false;
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [level, need]);
+
+  function onLevelInput(raw) {
+    setLevel(raw);
+    const n = Number(String(raw).trim());
+    if (Number.isFinite(n) && n >= 0) {
+      setProgress(clampProgress(Math.floor(n), progress));
+    }
+  }
+
+  return html`
+    <div class="level-xp-control">
+      <div class="level-xp-head">
+        <span class="level-xp-label">${t("gui.your_level")}</span>
+        <label class="level-xp-prog">
+          <span>${t("gui.progress_xp")}</span>
+          <input
+            type="number"
+            min="0"
+            max=${maxP}
+            value=${prog}
+            onInput=${(e) => setProgress(clampProgress(lvNum, e.target.value))}
+          />
+          <span class="level-xp-need">/ ${need}</span>
+        </label>
+      </div>
+      <div class="mc-xp mc-xp-editable" title=${t("gui.drag_bar")}>
+        <input
+          class="mc-xp-level-input"
+          type="number"
+          min="0"
+          value=${level}
+          onInput=${(e) => onLevelInput(e.target.value)}
+          aria-label=${t("gui.your_level")}
+        />
+        <div
+          class="mc-xp-track mc-xp-track-drag"
+          ref=${trackRef}
+          style=${{ width: `${w}px`, height: `${h}px` }}
+          onPointerDown=${(e) => {
+            dragging.current = true;
+            e.currentTarget.setPointerCapture?.(e.pointerId);
+            setProgFromClientX(e.clientX);
+          }}
+        >
+          <div
+            class="mc-xp-bg"
+            style=${{
+              backgroundImage: `url(${IMG.xpBarBg})`,
+              backgroundSize: `${w}px ${h}px`,
+            }}
+          ></div>
+          <div class="mc-xp-clip" style=${{ width: `${pct}%` }}>
+            <div
+              class="mc-xp-fill"
+              style=${{
+                width: `${w}px`,
+                height: `${h}px`,
+                backgroundImage: `url(${IMG.xpBarFill})`,
+                backgroundSize: `${w}px ${h}px`,
+              }}
+            ></div>
+          </div>
         </div>
       </div>
     </div>
@@ -633,14 +746,27 @@ function XpDemoPanel({ t, view, mode }) {
   `;
 }
 
-/** 原版槽位物品区 16×16；坐标为物品绘制原点（非边框外沿） */
-function GuiSlot({ left, top, title, src, scale = GUI_SCALE }) {
+/** 原版槽位物品区 16×16 */
+function GuiSlot({
+  left,
+  top,
+  title,
+  src,
+  scale = GUI_SCALE,
+  onClick,
+  clickable = false,
+  className = "",
+  flying = false,
+}) {
   const size = 16 * scale;
+  const Tag = onClick ? "button" : "div";
   return html`
-    <div
-      class="gui-slot"
+    <${Tag}
+      type=${onClick ? "button" : undefined}
+      class=${`gui-slot ${clickable ? "gui-slot-clickable" : ""} ${flying ? "gui-slot-fly" : ""} ${className}`.trim()}
       title=${title}
       style=${{ left: `${left}px`, top: `${top}px`, width: `${size}px`, height: `${size}px` }}
+      onClick=${onClick}
     >
       ${src &&
       html`<img
@@ -651,14 +777,25 @@ function GuiSlot({ left, top, title, src, scale = GUI_SCALE }) {
         height=${size}
         draggable=${false}
       />`}
-    </div>
+    </${Tag}>
   `;
 }
 
-function AnvilPanel({ t, level, setLevel, cost, setCost, onCalc }) {
+function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, onCalc }) {
   const [trio, setTrio] = useState(() => randomAnvilTrio());
+  const [flying, setFlying] = useState(false);
   const s = GUI_SCALE;
   const costN = String(cost ?? "").trim() || "—";
+
+  function takeResult() {
+    if (flying) return;
+    setFlying(true);
+    window.setTimeout(() => {
+      setFlying(false);
+      onCalc();
+    }, 280);
+  }
+
   return html`
     <div class="mc-gui-wrap">
       <div
@@ -673,28 +810,40 @@ function AnvilPanel({ t, level, setLevel, cost, setCost, onCalc }) {
         <${GuiSlot}
           left=${27 * s}
           top=${47 * s}
-          title=${t("gui.slot_left")}
+          title=${t("gui.slot_reroll")}
           src=${trio.left}
+          clickable=${true}
+          onClick=${() => setTrio(randomAnvilTrio())}
         />
         <${GuiSlot}
           left=${76 * s}
           top=${47 * s}
-          title=${t("gui.slot_right")}
+          title=${t("gui.slot_reroll")}
           src=${trio.right}
+          clickable=${true}
+          onClick=${() => setTrio(randomAnvilTrio())}
         />
         <${GuiSlot}
           left=${134 * s}
           top=${47 * s}
-          title=${t("gui.slot_out")}
+          title=${t("gui.slot_take")}
           src=${trio.out}
+          clickable=${true}
+          flying=${flying}
+          className="gui-slot-out"
+          onClick=${takeResult}
         />
         <div
           class="gui-name-field"
           style=${{
-            left: `${60 * s}px`,
-            top: `${24 * s}px`,
+            left: `${59 * s}px`,
+            top: `${20 * s}px`,
             width: `${110 * s}px`,
-            height: `${12 * s}px`,
+            height: `${16 * s}px`,
+            padding: `${4 * s}px 0 0 ${3 * s}px`,
+            fontSize: `${8 * s}px`,
+            lineHeight: `${8 * s}px`,
+            textShadow: `${s}px ${s}px 0 #3f3f3f`,
           }}
         >
           ${t("gui.rename_placeholder")}
@@ -703,25 +852,27 @@ function AnvilPanel({ t, level, setLevel, cost, setCost, onCalc }) {
           ${t("gui.enchantment_cost", { cost: costN })}
         </div>
       </div>
-      <div class="mc-gui-fields">
-        <label>
-          <span>${t("gui.your_level")}</span>
-          <input value=${level} onInput=${(e) => setLevel(e.target.value)} />
-        </label>
-        <label>
-          <span>${t("gui.anvil_cost")}</span>
-          <input value=${cost} onInput=${(e) => setCost(e.target.value)} />
-        </label>
+      <${LevelXpControl}
+        t=${t}
+        level=${level}
+        setLevel=${setLevel}
+        progress=${progress}
+        setProgress=${setProgress}
+      />
+      <div class="cost-bottle-row">
+        <${McImg} src=${IMG.xpBottle} size=${28} alt="" />
+        <span class="cost-bottle-x">×</span>
+        <input
+          class="cost-bottle-input"
+          type="number"
+          min="0"
+          value=${cost}
+          onInput=${(e) => setCost(e.target.value)}
+          aria-label=${t("gui.anvil_cost")}
+        />
+        <span class="cost-bottle-hint">${t("gui.cost_levels_hint")}</span>
       </div>
       <p class="mc-gui-tip">${t("gui.anvil_tip")}</p>
-      <div class="mc-gui-actions">
-        <button type="button" class="mc-secondary" onClick=${() => setTrio(randomAnvilTrio())}>
-          ${t("gui.reroll")}
-        </button>
-        <button type="button" class="mc-primary" onClick=${onCalc}>
-          ${t("gui.anvil_btn")}
-        </button>
-      </div>
     </div>
   `;
 }
@@ -730,8 +881,12 @@ function EnchantPanel({
   t,
   level,
   setLevel,
-  cost,
-  setCost,
+  progress,
+  setProgress,
+  costs,
+  setCosts,
+  activeIdx,
+  setActiveIdx,
   enchantReq,
   setEnchantReq,
   onCalc,
@@ -739,12 +894,24 @@ function EnchantPanel({
   const [pair, setPair] = useState(() => randomEnchantPair());
   const [opts, setOpts] = useState(() => randomEnchantOptions());
   const s = GUI_SCALE;
-  const costN = Number(cost) || 1;
-  const glyphScale = s; // 8px 字形 × scale，与 GUI 同倍率
+  const glyphScale = Math.max(1, s - 0.5);
 
-  function rerollAll() {
+  function rerollItems() {
     setPair(randomEnchantPair());
     setOpts(randomEnchantOptions());
+  }
+
+  function setCostAt(i, raw) {
+    const next = costs.slice();
+    next[i] = raw;
+    setCosts(next);
+  }
+
+  function pickRow(i) {
+    setActiveIdx(i);
+    const n = Number(String(costs[i]).trim());
+    if (!Number.isFinite(n) || n < 0) return;
+    onCalc(Math.floor(n));
   }
 
   return html`
@@ -758,31 +925,51 @@ function EnchantPanel({
           backgroundSize: `${256 * s}px ${256 * s}px`,
         }}
       >
+        <img
+          class="mc-pixel gui-enchant-book"
+          src=${IMG.enchantBook}
+          alt=""
+          draggable=${false}
+          style=${{
+            left: `${4 * s}px`,
+            top: `${6 * s}px`,
+            width: `${48 * s}px`,
+            height: `${36 * s}px`,
+          }}
+        />
         <${GuiSlot}
           left=${15 * s}
           top=${47 * s}
-          title=${t("gui.slot_item")}
+          title=${t("gui.slot_reroll")}
           src=${pair.item}
+          clickable=${true}
+          onClick=${rerollItems}
         />
         <${GuiSlot}
           left=${35 * s}
           top=${47 * s}
-          title=${t("gui.slot_lapis")}
+          title=${t("gui.slot_reroll")}
           src=${pair.lapis}
+          clickable=${true}
+          onClick=${rerollItems}
         />
-        ${[1, 2, 3].map(
-          (n, i) => html`
+        ${[0, 1, 2].map(
+          (i) => html`
             <button
               type="button"
-              class=${costN === n ? "gui-enchant-opt active" : "gui-enchant-opt"}
+              class=${activeIdx === i ? "gui-enchant-opt active" : "gui-enchant-opt"}
               style=${{
                 left: `${60 * s}px`,
                 top: `${(14 + 19 * i) * s}px`,
                 width: `${108 * s}px`,
                 height: `${19 * s}px`,
               }}
-              title=${t("gui.enchant_hover", { name: opts[i].hint, cost: n, lapis: n })}
-              onClick=${() => setCost(String(n))}
+              title=${t("gui.enchant_hover", {
+                name: opts[i].hint,
+                cost: costs[i],
+                lapis: i + 1,
+              })}
+              onClick=${() => pickRow(i)}
             >
               <span
                 class="gui-enchant-lapis"
@@ -793,59 +980,66 @@ function EnchantPanel({
                   height: `${16 * s}px`,
                 }}
               >
-                <${McImg} src=${IMG.lapis} size=${16 * s} alt="" />
+                ${Array.from({ length: i + 1 }, (_, k) =>
+                  html`<${McImg}
+                    key=${k}
+                    src=${IMG.lapis}
+                    size=${Math.max(10, 12 * s - k * 2)}
+                    alt=""
+                    className="gui-enchant-lapis-stack"
+                  />`
+                )}
               </span>
               <span
                 class="gui-enchant-runes"
                 style=${{
                   left: `${20 * s}px`,
                   top: `${2 * s}px`,
-                  width: `${72 * s}px`,
+                  width: `${64 * s}px`,
                   height: `${16 * s}px`,
                 }}
               >
                 <${SgaText} text=${opts[i].phrase} scale=${glyphScale} />
               </span>
-              <span class="gui-enchant-lv" style=${{ right: `${2 * s}px`, bottom: `${1 * s}px` }}>
-                ${n}
-              </span>
+              <input
+                class="gui-enchant-lv-input"
+                style=${{ right: `${1 * s}px`, bottom: `${1 * s}px` }}
+                type="number"
+                min="0"
+                value=${costs[i]}
+                onClick=${(e) => e.stopPropagation()}
+                onInput=${(e) => setCostAt(i, e.target.value)}
+                aria-label=${t("gui.enchant_cost")}
+              />
             </button>
           `
         )}
       </div>
-      <div class="mc-gui-fields">
-        <label>
-          <span>${t("gui.your_level")}</span>
-          <input value=${level} onInput=${(e) => setLevel(e.target.value)} />
-        </label>
-        <label>
-          <span>${t("gui.enchant_req")}</span>
-          <input
-            value=${enchantReq}
-            onInput=${(e) => setEnchantReq(e.target.value)}
-          />
-        </label>
-        <label>
-          <span>${t("gui.enchant_cost")}</span>
-          <input value=${cost} onInput=${(e) => setCost(e.target.value)} />
-        </label>
-      </div>
+      <${LevelXpControl}
+        t=${t}
+        level=${level}
+        setLevel=${setLevel}
+        progress=${progress}
+        setProgress=${setProgress}
+      />
+      <label class="enchant-req-field">
+        <span>${t("gui.enchant_req")}</span>
+        <input
+          value=${enchantReq}
+          onInput=${(e) => setEnchantReq(e.target.value)}
+        />
+      </label>
       <p class="mc-gui-tip">${t("gui.enchant_tip")}</p>
-      <div class="mc-gui-actions">
-        <button type="button" class="mc-secondary" onClick=${rerollAll}>
-          ${t("gui.reroll")}
-        </button>
-        <button type="button" class="mc-primary" onClick=${onCalc}>
-          ${t("gui.enchant_btn")}
-        </button>
-      </div>
     </div>
   `;
 }
 
 function Tab1({ t, status }) {
   const [level, setLevel] = useState("46");
+  const [progress, setProgress] = useState(() => Math.floor(xpToNext(46) / 2));
   const [cost, setCost] = useState("3");
+  const [enchantCosts, setEnchantCosts] = useState(["1", "2", "3"]);
+  const [activeEnchantIdx, setActiveEnchantIdx] = useState(2);
   const [mode, setMode] = useState(MODE_ANVIL);
   const [enchantReq, setEnchantReq] = useState("30");
   const [resultText, setResultText] = useState("");
@@ -853,45 +1047,60 @@ function Tab1({ t, status }) {
   const [xpView, setXpView] = useState(null);
   const [error, setError] = useState("");
 
-  function onCalc() {
+  function onCalc(costOverride) {
     setError("");
     try {
       const curLevel = parseNonNegInt(level, t("errors.name_level"), t);
-      const costLevels = parseNonNegInt(cost, t("errors.name_cost"), t);
+      const costRaw =
+        costOverride != null
+          ? costOverride
+          : mode === MODE_ENCHANT
+            ? enchantCosts[activeEnchantIdx]
+            : cost;
+      const costLevels = parseNonNegInt(costRaw, t("errors.name_cost"), t);
       let req = 30;
       if (mode === MODE_ENCHANT) {
         req = parseNonNegInt(enchantReq, t("errors.name_enchant"), t);
       }
-      const { start, end, pay } = computeBoundaries(
+      const prog = clampProgress(curLevel, progress);
+      setProgress(prog);
+      if (mode === MODE_ANVIL) setCost(String(costLevels));
+      const { exact, start, end, pay } = applyAtProgress(
         curLevel,
+        prog,
         costLevels,
         mode,
         req
       );
-      const lines = buildLevelHLines(curLevel, costLevels, mode, req);
       setResultText(
-        buildResultText(t, curLevel, costLevels, mode, req, start, end, pay)
+        buildResultText(
+          t,
+          curLevel,
+          prog,
+          costLevels,
+          mode,
+          req,
+          exact,
+          start,
+          end,
+          pay
+        )
       );
       setResultOpen(false);
 
-      // 示意：进度条取中间；模组侧用双边界平均进度
-      const beforePct = 50;
-      const vanillaPct = 50;
-      const avgProg =
-        (start.afterProgress / Math.max(1, xpToNext(start.afterLevel) || 1) +
-          end.afterProgress / Math.max(1, xpToNext(end.afterLevel) || 1)) /
-        2;
-      const modPct = Math.max(0, Math.min(100, avgProg * 100));
-      const modLevel = Math.round(lines.yMod);
+      const beforePct = progressPctOf(curLevel, prog);
+      const vanillaLevel = Math.max(0, curLevel - costLevels);
+      const vanillaPct = beforePct;
+      const modPct = progressPctOf(exact.afterLevel, exact.afterProgress);
       setXpView({
         beforeLevel: curLevel,
         beforePct,
-        vanillaLevel: lines.yVanilla,
+        vanillaLevel,
         vanillaPct,
-        modLevel,
+        modLevel: exact.afterLevel,
         modPct,
         cost: costLevels,
-        kept: Number((lines.yMod - lines.yVanilla).toFixed(1)),
+        kept: Number((exact.afterLevel - vanillaLevel).toFixed(1)),
         pay,
       });
     } catch (e) {
@@ -908,17 +1117,23 @@ function Tab1({ t, status }) {
           t=${t}
           level=${level}
           setLevel=${setLevel}
+          progress=${progress}
+          setProgress=${setProgress}
           cost=${cost}
           setCost=${setCost}
-          onCalc=${onCalc}
+          onCalc=${() => onCalc()}
         />`}
         ${mode === MODE_ENCHANT &&
         html`<${EnchantPanel}
           t=${t}
           level=${level}
           setLevel=${setLevel}
-          cost=${cost}
-          setCost=${setCost}
+          progress=${progress}
+          setProgress=${setProgress}
+          costs=${enchantCosts}
+          setCosts=${setEnchantCosts}
+          activeIdx=${activeEnchantIdx}
+          setActiveIdx=${setActiveEnchantIdx}
           enchantReq=${enchantReq}
           setEnchantReq=${setEnchantReq}
           onCalc=${onCalc}
