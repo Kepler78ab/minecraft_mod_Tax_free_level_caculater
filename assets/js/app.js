@@ -766,7 +766,7 @@ function XpValueBar({ label, value, setValue, min, max, hint, bottle = false }) 
       ${bottle &&
       html`
         <div class="cost-bottle-row">
-          <${McImg} src=${IMG.xpBottle} size=${28} alt="" />
+          <${McImg} src=${IMG.xpBottle} size=${20} alt="" />
           <span class="cost-bottle-x">×</span>
           <input
             class="cost-bottle-input"

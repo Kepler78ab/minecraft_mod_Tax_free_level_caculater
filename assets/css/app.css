@@ -319,27 +319,40 @@ button.gui-enchant-opt.active {
 
 .mode-picker {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.mode-card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
+  grid-template-columns: repeat(2, 72px);
   gap: 12px;
-  min-height: 64px;
-  padding: 8px 12px;
-  /* 继承全局 MC 按钮，再微调 */
-  color: #e0e0e0;
+  margin-bottom: 12px;
+  justify-content: center;
 }
 
-.mode-card.active {
-  color: #ffffa0;
-  border-top-color: #ffffa0;
-  border-left-color: #ffffa0;
+button.mode-card,
+button.mode-card:hover,
+button.mode-card:active,
+button.mode-card.active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 0;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  text-shadow: none;
+  color: #9aa8bc;
+}
+
+button.mode-card .mc-pixel {
+  filter: grayscale(1) brightness(0.55);
+}
+
+button.mode-card.active,
+button.mode-card.active:hover {
+  color: #f4ead6;
+}
+
+button.mode-card.active .mc-pixel {
+  filter: none;
 }
 
 .mode-card-label {
@@ -658,10 +671,10 @@ button.gui-enchant-opt.active {
 
 .level-xp-head {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
   font-size: 0.85rem;
   color: var(--text);
 }
@@ -790,16 +803,45 @@ button.gui-enchant-opt.active {
 }
 
 .tab2-fields {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
   margin: 12px 0;
+  width: 100%;
   max-width: 420px;
+}
+
+.tab2-fields > * {
+  width: 100%;
+  max-width: 100%;
+}
+
+.tab2-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tab2-left > h2,
+.tab2-left > .hint-block,
+.tab2-left > .tab2-fields,
+.tab2-left > .actions,
+.tab2-left > .error,
+.tab2-left > .status {
+  width: 100%;
+  max-width: 420px;
+}
+
+.tab2-left > h2,
+.tab2-left > .hint-block {
+  text-align: center;
 }
 
 .tab2-left .mode-picker {
   margin-top: 4px;
-  max-width: 420px;
+  width: auto;
+  max-width: none;
 }
 
 .tab2-left .actions {
