@@ -15,7 +15,7 @@ npx --yes serve .
 ## 技术栈
 
 - Preact + htm + hooks：`src/lib/`（本地 ESM）
-- Chart.js：jsDelivr CDN
+- 对比图：本地 Chart.js（`src/lib/chart.umd.min.js`，约 **200KB**）；失败时回退 Canvas
 - 语言包：`lang/zh_CN.json`、`lang/en_US.json`
 
 ## 功能（0.1.0）

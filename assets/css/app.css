@@ -175,9 +175,32 @@ button:disabled {
   font-size: 0.85rem;
 }
 
+.chart-panel {
+  min-height: 360px;
+}
+
 .chart-wrap {
   position: relative;
-  height: 320px;
+  width: 100%;
+  height: 340px;
+  min-width: 260px;
+  min-height: 300px;
+}
+
+.chart-wrap canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 宽屏双栏时保证右栏图表区有稳定占位 */
+@media (min-width: 861px) {
+  .layout > .chart-panel {
+    min-height: 380px;
+  }
+  .chart-wrap {
+    height: 360px;
+  }
 }
 
 .result-panel {

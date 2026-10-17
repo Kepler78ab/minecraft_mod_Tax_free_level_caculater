@@ -2,6 +2,7 @@ import { html } from "htm/preact";
 import { render } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
+import { drawHLineChart } from "./chart-canvas.js";
 import { createI18n, getSavedLang, loadLang, saveLang } from "./i18n.js";
 import {
   MODE_ANVIL,
@@ -108,77 +109,76 @@ function buildResultText(t, curLevel, cost, mode, enchantReq, start, end, pay) {
   return lines.join("\n");
 }
 
-function useChart(canvasRef, t) {
-  const chartRef = useRef(null);
+function getChartCtor() {
+  return typeof window !== "undefined" ? window.Chart : undefined;
+}
 
-  useEffect(() => {
-    return () => {
-      if (chartRef.current) {
-        chartRef.current.destroy();
-        chartRef.current = null;
-      }
-    };
-  }, []);
+function useChart(canvasRef, wrapRef, t) {
+  const lastPayloadRef = useRef(null);
+  const chartInstRef = useRef(null);
+  const tRef = useRef(t);
+  tRef.current = t;
 
-  function drawEmpty() {
-    draw(null);
-  }
-
-  function draw(payload) {
-    const canvas = canvasRef.current;
-    if (!canvas || typeof Chart === "undefined") return;
-
-    if (chartRef.current) {
-      chartRef.current.destroy();
-      chartRef.current = null;
+  const destroyChartJs = () => {
+    if (chartInstRef.current) {
+      chartInstRef.current.destroy();
+      chartInstRef.current = null;
     }
+  };
 
-    const empty = !payload;
-    const yNone = empty ? 0 : payload.yNone;
-    const yVanilla = empty ? 0 : payload.yVanilla;
-    const yMod = empty ? 0 : payload.yMod;
+  const paintWithChartJs = (canvas, data, tt) => {
+    const ChartCtor = getChartCtor();
+    if (!ChartCtor) return false;
+
+    const empty = !data;
+    const yNone = empty ? 0 : data.yNone;
+    const yVanilla = empty ? 0 : data.yVanilla;
+    const yMod = empty ? 0 : data.yMod;
     const title = empty
-      ? t("app.plot_title_empty")
-      : t("plot.title", {
-          lv: payload.lv,
-          cost: payload.cost,
-          mode: payload.modeLabel,
+      ? tt("app.plot_title_empty")
+      : tt("plot.title", {
+          lv: data.lv,
+          cost: data.cost,
+          mode: data.modeLabel,
         });
-
-    const ys = empty ? [0, 1] : [yNone, yVanilla, yMod];
+    const ys = empty ? [0, 10] : [yNone, yVanilla, yMod];
     const yLo = Math.min(...ys);
     const yHi = Math.max(...ys);
     const pad = yHi > yLo ? Math.max(2, (yHi - yLo) * 0.15) : 2;
 
-    chartRef.current = new Chart(canvas, {
+    destroyChartJs();
+    chartInstRef.current = new ChartCtor(canvas, {
       type: "line",
       data: {
-        labels: ["", ""],
+        labels: ["A", "B"],
         datasets: [
           {
-            label: t("plot.legend_none") + (empty ? "" : ` = ${yNone}`),
+            label: empty
+              ? tt("plot.legend_none")
+              : `${tt("plot.legend_none")} = ${yNone}`,
             data: [yNone, yNone],
             borderColor: "#2ca02c",
-            backgroundColor: "#2ca02c",
-            borderWidth: 2.5,
+            borderWidth: 3,
             pointRadius: 0,
             tension: 0,
           },
           {
-            label: t("plot.legend_vanilla") + (empty ? "" : ` = ${yVanilla}`),
+            label: empty
+              ? tt("plot.legend_vanilla")
+              : `${tt("plot.legend_vanilla")} = ${yVanilla}`,
             data: [yVanilla, yVanilla],
             borderColor: "#d62728",
-            backgroundColor: "#d62728",
-            borderWidth: 2.5,
+            borderWidth: 3,
             pointRadius: 0,
             tension: 0,
           },
           {
-            label: t("plot.legend_mod") + (empty ? "" : ` = ${Number(yMod.toFixed(2))}`),
+            label: empty
+              ? tt("plot.legend_mod")
+              : `${tt("plot.legend_mod")} = ${Number(yMod.toFixed(2))}`,
             data: [yMod, yMod],
             borderColor: "#1f77b4",
-            backgroundColor: "#1f77b4",
-            borderWidth: 2.5,
+            borderWidth: 3,
             pointRadius: 0,
             tension: 0,
           },
@@ -187,15 +187,10 @@ function useChart(canvasRef, t) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: false,
         plugins: {
-          title: {
-            display: true,
-            text: title,
-            color: "#e7ecf3",
-          },
-          legend: {
-            labels: { color: "#c5d0e0" },
-          },
+          title: { display: true, text: title, color: "#e7ecf3", font: { size: 14 } },
+          legend: { labels: { color: "#c5d0e0", boxWidth: 16 } },
         },
         scales: {
           x: {
@@ -203,22 +198,102 @@ function useChart(canvasRef, t) {
             grid: { color: "rgba(255,255,255,0.06)" },
           },
           y: {
-            title: {
-              display: true,
-              text: t("plot.ylabel"),
-              color: "#9aa8bc",
-            },
-            min: empty ? 0 : Math.max(0, yLo - pad),
-            max: empty ? 10 : yHi + pad,
+            min: Math.max(0, yLo - pad),
+            max: yHi + pad,
+            title: { display: true, text: tt("plot.ylabel"), color: "#9aa8bc" },
             ticks: { color: "#9aa8bc" },
             grid: { color: "rgba(255,255,255,0.08)" },
           },
         },
       },
     });
-  }
+    return true;
+  };
 
-  return { draw, drawEmpty };
+  const paintFallbackCanvas = (canvas, data, tt) => {
+    destroyChartJs();
+    if (!data) {
+      drawHLineChart(canvas, {
+        title: tt("app.plot_title_empty"),
+        ylabel: tt("plot.ylabel"),
+        legends: {
+          none: tt("plot.legend_none"),
+          vanilla: tt("plot.legend_vanilla"),
+          mod: tt("plot.legend_mod"),
+        },
+        yNone: 0,
+        yVanilla: 0,
+        yMod: 0,
+        empty: true,
+      });
+      return;
+    }
+    drawHLineChart(canvas, {
+      title: tt("plot.title", {
+        lv: data.lv,
+        cost: data.cost,
+        mode: data.modeLabel,
+      }),
+      ylabel: tt("plot.ylabel"),
+      legends: {
+        none: `${tt("plot.legend_none")} = ${data.yNone}`,
+        vanilla: `${tt("plot.legend_vanilla")} = ${data.yVanilla}`,
+        mod: `${tt("plot.legend_mod")} = ${Number(data.yMod.toFixed(2))}`,
+      },
+      yNone: data.yNone,
+      yVanilla: data.yVanilla,
+      yMod: data.yMod,
+      empty: false,
+    });
+  };
+
+  const paint = (data) => {
+    const canvas = canvasRef.current;
+    const wrap = wrapRef.current;
+    const tt = tRef.current;
+    if (!canvas) return;
+    // 电脑端双栏布局时，尺寸未就绪则稍后再画
+    if (wrap && (wrap.clientWidth < 40 || wrap.clientHeight < 40)) return;
+    const ok = paintWithChartJs(canvas, data, tt);
+    if (!ok) paintFallbackCanvas(canvas, data, tt);
+  };
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const redraw = () => {
+      requestAnimationFrame(() => paint(lastPayloadRef.current));
+    };
+    window.addEventListener("resize", redraw);
+    let ro;
+    if (wrap && typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(redraw);
+      ro.observe(wrap);
+    }
+    // 延迟一帧，避开桌面端首屏 grid 宽度为 0
+    const t1 = setTimeout(redraw, 50);
+    const t2 = setTimeout(redraw, 200);
+    return () => {
+      window.removeEventListener("resize", redraw);
+      if (ro) ro.disconnect();
+      clearTimeout(t1);
+      clearTimeout(t2);
+      destroyChartJs();
+    };
+  }, []);
+
+  return useMemo(
+    () => ({
+      draw(payload) {
+        lastPayloadRef.current = payload;
+        requestAnimationFrame(() => paint(payload));
+      },
+      drawEmpty() {
+        lastPayloadRef.current = null;
+        requestAnimationFrame(() => paint(null));
+      },
+    }),
+    []
+  );
 }
 
 function App() {
@@ -229,11 +304,13 @@ function App() {
   const [mode, setMode] = useState(MODE_ANVIL);
   const [enchantReq, setEnchantReq] = useState("30");
   const [resultText, setResultText] = useState("");
+  const [plotData, setPlotData] = useState(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const canvasRef = useRef(null);
+  const wrapRef = useRef(null);
   const t = useMemo(() => (i18n ? i18n.t.bind(i18n) : (k) => k), [i18n]);
-  const chart = useChart(canvasRef, t);
+  const chart = useChart(canvasRef, wrapRef, t);
 
   useEffect(() => {
     let cancelled = false;
@@ -258,14 +335,20 @@ function App() {
     const msg = selfCheck();
     if (msg) setStatus(t("app.self_check_fail", { msg }));
     else setStatus(t("app.self_check_ok"));
-    chart.drawEmpty();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [i18n]);
+  }, [i18n, t]);
+
+  // 等 canvas 挂载后再画，避免 Preact 首帧 ref 为空
+  useEffect(() => {
+    if (!i18n) return;
+    if (plotData) chart.draw(plotData);
+    else chart.drawEmpty();
+  }, [i18n, plotData, chart]);
 
   function onLangChange(code) {
     setLangCode(code);
     saveLang(code);
     setResultText("");
+    setPlotData(null);
     setError("");
   }
 
@@ -283,7 +366,7 @@ function App() {
       const lines = buildLevelHLines(curLevel, costLevels, mode, req);
       const text = buildResultText(t, curLevel, costLevels, mode, req, start, end, pay);
       setResultText(text);
-      chart.draw({
+      setPlotData({
         lv: curLevel,
         cost: costLevels,
         modeLabel: t(`mode.${mode}`),
@@ -298,8 +381,8 @@ function App() {
 
   function onClear() {
     setResultText("");
+    setPlotData(null);
     setError("");
-    chart.drawEmpty();
   }
 
   if (!i18n) {
@@ -364,8 +447,8 @@ function App() {
         <div class="error">${error}</div>
         <div class="status">${status}</div>
       </section>
-      <section class="panel">
-        <div class="chart-wrap">
+      <section class="panel chart-panel">
+        <div class="chart-wrap" ref=${wrapRef}>
           <canvas ref=${canvasRef}></canvas>
         </div>
       </section>
