@@ -73,13 +73,12 @@ body {
 }
 
 button.tab {
-  background: #243044;
-  color: var(--muted);
+  color: #e0e0e0;
 }
 
 button.tab.active {
-  background: var(--accent);
-  color: #fff;
+  color: #ffffa0;
+  border-color: #ffffa0 #555 #555 #ffffa0;
 }
 
 .hint-block {
@@ -93,6 +92,11 @@ button.tab.active {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+/* Tab2：控件 / 曲线 / 摘要一律竖排，避免宽屏挤扁图表 */
+.layout-tab2 {
+  grid-template-columns: 1fr;
 }
 
 @media (max-width: 860px) {
@@ -165,24 +169,74 @@ button.tab.active {
   margin-top: 8px;
 }
 
+/* 原版 MC 风格按钮（排除铁砧/附魔 GUI 内槽位） */
 button {
-  border: 0;
-  border-radius: 8px;
-  padding: 9px 14px;
   font: inherit;
   cursor: pointer;
-  background: var(--accent);
-  color: #fff;
+  padding: 8px 14px;
+  color: #e0e0e0;
+  background: #6f6f6f linear-gradient(#8b8b8b, #6f6f6f);
+  border: 2px solid #000;
+  border-top-color: #ffffff;
+  border-left-color: #ffffff;
+  border-right-color: #373737;
+  border-bottom-color: #373737;
+  border-radius: 0;
+  box-shadow: inset 1px 1px 0 #c6c6c6, inset -1px -1px 0 #555;
+  text-shadow: 1px 1px 0 #3f3f3f;
+  image-rendering: pixelated;
+}
+
+button:hover:not(:disabled) {
+  color: #ffffa0;
+  background: #7a7a7a linear-gradient(#9a9a9a, #7a7a7a);
+}
+
+button:active:not(:disabled) {
+  border-top-color: #373737;
+  border-left-color: #373737;
+  border-right-color: #ffffff;
+  border-bottom-color: #ffffff;
+  box-shadow: inset 1px 1px 0 #555, inset -1px -1px 0 #c6c6c6;
 }
 
 button.secondary {
-  background: #2a364a;
-  color: var(--text);
+  color: #e0e0e0;
+  background: #5a5a5a linear-gradient(#707070, #5a5a5a);
 }
 
 button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+  color: #a0a0a0;
+}
+
+/* GUI 内槽位 / 附魔行：不要套全局 MC 按钮样式 */
+button.gui-slot,
+button.gui-enchant-opt {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  text-shadow: none;
+  color: inherit;
+  padding: 0;
+}
+
+button.gui-slot:hover:not(:disabled),
+button.gui-enchant-opt:hover:not(:disabled) {
+  background: transparent;
+  color: inherit;
+}
+
+button.gui-enchant-opt {
+  border: 1px solid transparent;
+}
+
+button.gui-enchant-opt:hover,
+button.gui-enchant-opt.active {
+  border-color: #c8b4ff;
+  background: #3a3060aa;
+  color: inherit;
 }
 
 .error {
@@ -265,28 +319,27 @@ button:disabled {
 
 .mode-picker {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 8px;
   margin-bottom: 12px;
 }
 
 .mode-card {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 6px;
-  min-height: 96px;
-  padding: 8px 4px;
-  background: #2b241c;
-  color: #f4ead6;
-  border: 2px solid #1a140e;
-  border-radius: 4px;
-  box-shadow: inset 0 0 0 2px #5a4632;
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 64px;
+  padding: 8px 12px;
+  /* 继承全局 MC 按钮，再微调 */
+  color: #e0e0e0;
 }
 
 .mode-card.active {
-  background: #3d3124;
-  box-shadow: inset 0 0 0 2px #c6a15b, 0 0 0 2px #8a6a32;
+  color: #ffffa0;
+  border-top-color: #ffffa0;
+  border-left-color: #ffffa0;
 }
 
 .mode-card-label {
@@ -667,8 +720,24 @@ button:disabled {
 }
 
 .mc-xp-track-drag {
+  position: relative;
   cursor: ew-resize;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 手机：加大经验条拖动热区（不可见扩展），视觉条尺寸不变 */
+@media (pointer: coarse), (hover: none) {
+  .mc-xp-track-drag::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    right: -8px;
+    top: -22px;
+    bottom: -22px;
+    z-index: 2;
+  }
 }
 
 .cost-bottle-row {
@@ -677,6 +746,7 @@ button:disabled {
   gap: 8px;
   width: 100%;
   max-width: 364px;
+  touch-action: manipulation;
 }
 
 .cost-bottle-x {
@@ -721,16 +791,35 @@ button:disabled {
 
 .tab2-fields {
   display: grid;
+  grid-template-columns: 1fr;
   gap: 12px;
   margin: 12px 0;
+  max-width: 420px;
 }
 
 .tab2-left .mode-picker {
   margin-top: 4px;
+  max-width: 420px;
 }
 
 .tab2-left .actions {
   margin-top: 4px;
+  max-width: 420px;
+}
+
+.tab2-left .actions button {
+  width: 100%;
+}
+
+.layout-tab2 > .chart-panel {
+  width: 100%;
+  min-height: 420px;
+}
+
+.layout-tab2 .chart-wrap-tall {
+  width: 100%;
+  height: min(52vh, 480px);
+  min-height: 360px;
 }
 
 .xp-demo {
@@ -846,22 +935,17 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #243044;
-  color: var(--text);
-  border: 1px solid var(--border);
-  padding: 10px 12px;
-  font: inherit;
   font-weight: 650;
-  cursor: pointer;
-}
-
-.result-toggle:hover {
-  background: #2c3a52;
+  text-align: left;
 }
 
 .result-toggle-mark {
-  color: var(--muted);
+  color: #ffffa0;
   font-size: 0.95rem;
+}
+
+.result-toggle:hover .result-toggle-mark {
+  color: #ffffc8;
 }
 
 .result-body {

@@ -748,10 +748,28 @@ function XpValueBar({ label, value, setValue, min, max, hint, bottle = false }) 
     <div class="level-xp-control">
       <div class="level-xp-head">
         <span class="level-xp-label">${label}</span>
-        <label class="level-xp-prog">
-          ${bottle && html`<${McImg} src=${IMG.xpBottle} size=${22} alt="" />`}
-          ${bottle && html`<span class="cost-bottle-x">×</span>`}
+        ${!bottle &&
+        html`
+          <label class="level-xp-prog">
+            <input
+              type="number"
+              min=${min}
+              max=${max}
+              value=${value}
+              aria-label=${label}
+              onInput=${(e) => setValue(String(clampInt(e.target.value, min, max)))}
+            />
+            <span class="level-xp-need">${min}–${max}</span>
+          </label>
+        `}
+      </div>
+      ${bottle &&
+      html`
+        <div class="cost-bottle-row">
+          <${McImg} src=${IMG.xpBottle} size=${28} alt="" />
+          <span class="cost-bottle-x">×</span>
           <input
+            class="cost-bottle-input"
             type="number"
             min=${min}
             max=${max}
@@ -759,9 +777,9 @@ function XpValueBar({ label, value, setValue, min, max, hint, bottle = false }) 
             aria-label=${label}
             onInput=${(e) => setValue(String(clampInt(e.target.value, min, max)))}
           />
-          <span class="level-xp-need">${min}–${max}</span>
-        </label>
-      </div>
+          <span class="cost-bottle-hint">${min}–${max}</span>
+        </div>
+      `}
       <div class="mc-xp mc-xp-editable" title=${hint || ""}>
         <div
           class="mc-xp-track mc-xp-track-drag"
@@ -1286,6 +1304,15 @@ function EnchantPanel({
         progress=${progress}
         setProgress=${setProgress}
       />
+      <${XpValueBar}
+        label=${t("gui.enchant_cost")}
+        hint=${t("gui.cost_range_hint")}
+        value=${costs[activeIdx]}
+        setValue=${(raw) => setCostAt(activeIdx, String(clampInt(raw, COST_MIN, COST_MAX)))}
+        min=${COST_MIN}
+        max=${COST_MAX}
+        bottle=${true}
+      />
       <label class="enchant-req-field">
         <span>${t("gui.enchant_req")}</span>
         <input
@@ -1507,7 +1534,7 @@ function Tab2({ t, status }) {
   }
 
   return html`
-    <div class="layout">
+    <div class="layout layout-tab2">
       <section class="panel tab2-left">
         <h2>${t("app.tab2")}</h2>
         <p class="hint-block">${t("tab2.banner")}</p>
