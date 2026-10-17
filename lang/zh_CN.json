@@ -2,8 +2,8 @@
   "meta": { "code": "zh_CN", "name": "中文" },
   "app": {
     "title": "MC Tax Free Levels 经验扣除计算器",
-    "version": "0.1.5",
-    "banner": "拖经验条设进度 → 铁砧点成品 / 附魔点选项即算 → 右侧对比原版与 Tax Free",
+    "version": "0.1.6",
+    "banner": "拖经验条设进度 → 铁砧点成品 / 附魔点选项即算 → Tab2 同口径扫掠曲线",
     "tab1": "单点对比",
     "tab2": "范围曲线",
     "label_level": "当前等级",
@@ -44,7 +44,9 @@
     "slot_item": "待附魔物品",
     "slot_lapis": "青金石",
     "slot_reroll": "点击更换随机物品",
-    "slot_take": "点击取出成品并计算",
+    "slot_take": "点一下取出成品并计算",
+    "slot_take_drag": "按住成品拖出格子后计算",
+    "anvil_tip_drag": "改等级/拖进度条，设经验瓶×N，再按住右侧成品拖出格子即算。点左/中格可换物品。",
     "enchantment_cost": "附魔花费：{cost}",
     "rename_placeholder": "物品名称",
     "anvil_tip": "改等级/拖进度条，设经验瓶×N，再点右侧成品取出即算。点左/中格可换物品。",
@@ -77,17 +79,19 @@
     "curve_title": "扫掠 {min}~{max}｜lv_cost={cost}｜{mode}"
   },
   "tab2": {
-    "banner": "横轴=起始等级，纵轴=扣后等级。三条曲线：未扣除 / 不使用模组 / 使用模组；黄虚线标记当前等级。",
+    "banner": "图标选铁砧/附魔 → 经验瓶×N 与可拖进度 → 绘制扫掠。模组曲线按该进度精确扣费（与 Tab1 同口径）。",
     "label_range_min": "扫掠下限",
     "label_range_max": "扫掠上限",
     "label_mark": "标记等级",
-    "hint_mark": "黄虚线位置（一般为你的当前等级）",
+    "hint_mark": "下方经验条 = 标记等级 + 扫掠共用进度；黄虚线标在曲线上",
+    "summary_toggle": "扫掠摘要（点击展开）",
     "summary_header": "======== 范围曲线 ========",
     "summary_range": "扫掠范围：{min} ~ {max}（采样步长 {step}）",
     "summary_cost": "扣除等级 X={cost}｜模组固定 XP={pay}",
+    "summary_progress": "共用进度：{progress} / {need} XP（相对标记等级本级）",
     "summary_mode": "模式：{mode}",
     "summary_mark": "标记 lv={mark} → 未扣除 {none} / 不使用模组 {vanilla} / 使用模组 {mod}",
-    "summary_hint": "曲线越高表示扣后剩余等级越多；蓝线相对红线越高，模组越划算。"
+    "summary_hint": "曲线越高表示扣后剩余等级越多；蓝线相对红线越高，模组越划算。改进度后需重新绘制。"
   },
   "result": {
     "toggle": "文字计算结果（点击展开）",

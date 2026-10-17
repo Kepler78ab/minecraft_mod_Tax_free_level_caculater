@@ -19,10 +19,8 @@ import {
   MODE_ANVIL,
   MODE_ENCHANT,
   applyAtProgress,
-  buildCurveSeries,
-  buildLevelHLines,
+  buildCurveSeriesExact,
   clampProgress,
-  computeBoundaries,
   levelAndProgressFromTotal,
   maxProgressAtLevel,
   modPayXp,
@@ -30,8 +28,15 @@ import {
   xpToNext,
 } from "./xp.js";
 
-const MODES = [MODE_ANVIL, MODE_ENCHANT];
 const GUI_SCALE = 2;
+const DRAG_TAKE_PX = 12;
+
+function prefersDragTake() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches
+  );
+}
 const LANGS = [
   { code: "zh_CN", name: "中文" },
   { code: "en_US", name: "English" },
@@ -506,27 +511,6 @@ function useChart(canvasRef, wrapRef, t, kind) {
   );
 }
 
-function ModeFields({ t, mode, setMode, enchantReq, setEnchantReq }) {
-  return html`
-    <div class="field">
-      <label>${t("app.label_mode")}</label>
-      <select value=${mode} onChange=${(e) => setMode(e.target.value)}>
-        ${MODES.map((m) => html`<option value=${m}>${t(`mode.${m}`)}</option>`)}
-      </select>
-    </div>
-    ${mode === MODE_ENCHANT &&
-    html`
-      <div class="field">
-        <label>${t("app.label_enchant_req")}</label>
-        <input
-          value=${enchantReq}
-          onInput=${(e) => setEnchantReq(e.target.value)}
-        />
-      </div>
-    `}
-  `;
-}
-
 function ModePicker({ t, mode, setMode }) {
   const items = [
     { key: MODE_ANVIL, label: t("mode.anvil_short"), tip: t("mode.anvil") },
@@ -754,19 +738,22 @@ function GuiSlot({
   src,
   scale = GUI_SCALE,
   onClick,
+  onPointerDown,
   clickable = false,
   className = "",
   flying = false,
+  lifted = false,
 }) {
   const size = 16 * scale;
-  const Tag = onClick ? "button" : "div";
+  const Tag = onClick || onPointerDown ? "button" : "div";
   return html`
     <${Tag}
-      type=${onClick ? "button" : undefined}
-      class=${`gui-slot ${clickable ? "gui-slot-clickable" : ""} ${flying ? "gui-slot-fly" : ""} ${className}`.trim()}
+      type=${onClick || onPointerDown ? "button" : undefined}
+      class=${`gui-slot ${clickable ? "gui-slot-clickable" : ""} ${flying ? "gui-slot-fly" : ""} ${lifted ? "gui-slot-lifted" : ""} ${className}`.trim()}
       title=${title}
       style=${{ left: `${left}px`, top: `${top}px`, width: `${size}px`, height: `${size}px` }}
       onClick=${onClick}
+      onPointerDown=${onPointerDown}
     >
       ${src &&
       html`<img
@@ -784,16 +771,46 @@ function GuiSlot({
 function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, onCalc }) {
   const [trio, setTrio] = useState(() => randomAnvilTrio());
   const [flying, setFlying] = useState(false);
+  const [dragGhost, setDragGhost] = useState(null);
+  const dragFine = useMemo(() => prefersDragTake(), []);
+  const dragRef = useRef(null);
   const s = GUI_SCALE;
   const costN = String(cost ?? "").trim() || "—";
+  const itemPx = 16 * s;
 
   function takeResult() {
-    if (flying) return;
+    if (flying || dragGhost) return;
     setFlying(true);
     window.setTimeout(() => {
       setFlying(false);
       onCalc();
     }, 280);
+  }
+
+  function onResultPointerDown(e) {
+    if (!dragFine || flying) return;
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = { x: e.clientX, y: e.clientY };
+    setDragGhost({ x: e.clientX, y: e.clientY });
+
+    function onMove(ev) {
+      if (!dragRef.current) return;
+      setDragGhost({ x: ev.clientX, y: ev.clientY });
+    }
+    function onUp(ev) {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      const start = dragRef.current;
+      dragRef.current = null;
+      setDragGhost(null);
+      if (!start) return;
+      const dist = Math.hypot(ev.clientX - start.x, ev.clientY - start.y);
+      if (dist >= DRAG_TAKE_PX) onCalc();
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   }
 
   return html`
@@ -826,13 +843,30 @@ function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, 
         <${GuiSlot}
           left=${134 * s}
           top=${47 * s}
-          title=${t("gui.slot_take")}
+          title=${dragFine ? t("gui.slot_take_drag") : t("gui.slot_take")}
           src=${trio.out}
           clickable=${true}
           flying=${flying}
-          className="gui-slot-out"
-          onClick=${takeResult}
+          lifted=${!!dragGhost}
+          className=${dragFine ? "gui-slot-out gui-slot-drag-mode" : "gui-slot-out"}
+          onClick=${dragFine ? undefined : takeResult}
+          onPointerDown=${dragFine ? onResultPointerDown : undefined}
         />
+        ${dragGhost &&
+        html`<img
+          class="mc-pixel gui-drag-ghost"
+          src=${trio.out}
+          alt=""
+          width=${itemPx}
+          height=${itemPx}
+          draggable=${false}
+          style=${{
+            left: `${dragGhost.x}px`,
+            top: `${dragGhost.y}px`,
+            width: `${itemPx}px`,
+            height: `${itemPx}px`,
+          }}
+        />`}
         <div
           class="gui-name-field"
           style=${{
@@ -872,7 +906,7 @@ function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, 
         />
         <span class="cost-bottle-hint">${t("gui.cost_levels_hint")}</span>
       </div>
-      <p class="mc-gui-tip">${t("gui.anvil_tip")}</p>
+      <p class="mc-gui-tip">${dragFine ? t("gui.anvil_tip_drag") : t("gui.anvil_tip")}</p>
     </div>
   `;
 }
@@ -1166,9 +1200,11 @@ function Tab2({ t, status }) {
   const [levelMin, setLevelMin] = useState("1");
   const [levelMax, setLevelMax] = useState("100");
   const [markLevel, setMarkLevel] = useState("46");
+  const [progress, setProgress] = useState(() => Math.floor(xpToNext(46) / 2));
   const [mode, setMode] = useState(MODE_ANVIL);
   const [enchantReq, setEnchantReq] = useState("30");
   const [summary, setSummary] = useState("");
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [plotData, setPlotData] = useState(null);
   const [error, setError] = useState("");
   const canvasRef = useRef(null);
@@ -1191,9 +1227,19 @@ function Tab2({ t, status }) {
       if (mode === MODE_ENCHANT) {
         req = parseNonNegInt(enchantReq, t("errors.name_enchant"), t);
       }
-      const series = buildCurveSeries(minLv, maxLv, costLevels, mode, req);
+      const prog = clampProgress(mark, progress);
+      setProgress(prog);
+      const series = buildCurveSeriesExact(
+        minLv,
+        maxLv,
+        costLevels,
+        mode,
+        req,
+        prog
+      );
       const pay = modPayXp(costLevels, mode, req);
-      const atMark = buildLevelHLines(mark, costLevels, mode, req);
+      const atMark = applyAtProgress(mark, prog, costLevels, mode, req);
+      const vanillaMark = Math.max(0, mark - costLevels);
       setPlotData({
         xs: series.xs,
         yNone: series.yNone,
@@ -1210,61 +1256,75 @@ function Tab2({ t, status }) {
           t("tab2.summary_header"),
           t("tab2.summary_range", { min: minLv, max: maxLv, step: series.step }),
           t("tab2.summary_cost", { cost: costLevels, pay }),
+          t("tab2.summary_progress", {
+            progress: prog,
+            need: xpToNext(mark),
+          }),
           t("tab2.summary_mode", { mode: t(`mode.${mode}`) }),
           t("tab2.summary_mark", {
             mark,
-            none: atMark.yNone,
-            vanilla: atMark.yVanilla,
-            mod: Number(atMark.yMod.toFixed(2)),
+            none: mark,
+            vanilla: vanillaMark,
+            mod: atMark.exact.afterLevel,
           }),
           t("tab2.summary_hint"),
         ].join("\n")
       );
+      setSummaryOpen(false);
     } catch (e) {
       setError(translateLogicError(e, t));
     }
   }
 
-  function onClear() {
-    setSummary("");
-    setPlotData(null);
-    setError("");
-  }
-
   return html`
     <div class="layout">
-      <section class="panel">
+      <section class="panel tab2-left">
         <h2>${t("app.tab2")}</h2>
         <p class="hint-block">${t("tab2.banner")}</p>
-        <div class="field">
-          <label>${t("app.label_cost")}</label>
-          <input value=${cost} onInput=${(e) => setCost(e.target.value)} />
+        <${ModePicker} t=${t} mode=${mode} setMode=${setMode} />
+        <div class="tab2-fields">
+          <div class="cost-bottle-row">
+            <${McImg} src=${IMG.xpBottle} size=${28} alt="" />
+            <span class="cost-bottle-x">×</span>
+            <input
+              class="cost-bottle-input"
+              type="number"
+              min="0"
+              value=${cost}
+              onInput=${(e) => setCost(e.target.value)}
+              aria-label=${t("app.label_cost")}
+            />
+            <span class="cost-bottle-hint">${t("gui.cost_levels_hint")}</span>
+          </div>
+          ${mode === MODE_ENCHANT &&
+          html`
+            <label class="enchant-req-field">
+              <span>${t("gui.enchant_req")}</span>
+              <input
+                value=${enchantReq}
+                onInput=${(e) => setEnchantReq(e.target.value)}
+              />
+            </label>
+          `}
+          <div class="field">
+            <label>${t("tab2.label_range_min")}</label>
+            <input value=${levelMin} onInput=${(e) => setLevelMin(e.target.value)} />
+          </div>
+          <div class="field">
+            <label>${t("tab2.label_range_max")}</label>
+            <input value=${levelMax} onInput=${(e) => setLevelMax(e.target.value)} />
+          </div>
+          <p class="hint">${t("tab2.hint_mark")}</p>
+          <${LevelXpControl}
+            t=${t}
+            level=${markLevel}
+            setLevel=${setMarkLevel}
+            progress=${progress}
+            setProgress=${setProgress}
+          />
         </div>
-        <div class="field">
-          <label>${t("tab2.label_range_min")}</label>
-          <input value=${levelMin} onInput=${(e) => setLevelMin(e.target.value)} />
-        </div>
-        <div class="field">
-          <label>${t("tab2.label_range_max")}</label>
-          <input value=${levelMax} onInput=${(e) => setLevelMax(e.target.value)} />
-        </div>
-        <div class="field">
-          <label>${t("tab2.label_mark")}</label>
-          <input value=${markLevel} onInput=${(e) => setMarkLevel(e.target.value)} />
-        </div>
-        <div class="hint">${t("tab2.hint_mark")}</div>
-        <${ModeFields}
-          t=${t}
-          mode=${mode}
-          setMode=${setMode}
-          enchantReq=${enchantReq}
-          setEnchantReq=${setEnchantReq}
-        />
         <div class="actions">
           <button type="button" onClick=${onCalc}>${t("app.btn_plot")}</button>
-          <button type="button" class="secondary" onClick=${onClear}>
-            ${t("app.btn_clear")}
-          </button>
         </div>
         <div class="error">${error}</div>
         <div class="status">${status}</div>
@@ -1276,7 +1336,17 @@ function Tab2({ t, status }) {
       </section>
     </div>
     <section class="panel result-panel">
-      <pre>${summary || "—"}</pre>
+      <button
+        type="button"
+        class="result-toggle"
+        onClick=${() => setSummaryOpen((v) => !v)}
+        aria-expanded=${summaryOpen}
+      >
+        <span>${t("tab2.summary_toggle")}</span>
+        <span class="result-toggle-mark">${summaryOpen ? "▾" : "▸"}</span>
+      </button>
+      ${summaryOpen &&
+      html`<pre class="result-body">${summary || "—"}</pre>`}
     </section>
   `;
 }

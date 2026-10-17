@@ -119,13 +119,7 @@ export function buildLevelHLines(lv, costLevels, mode, enchantReq) {
   };
 }
 
-/**
- * Tab2 扫掠曲线：横轴起始等级 lv，纵轴扣后等级。
- * - y = lv（未扣除）
- * - y = max(0, lv - lv_cost)（不使用模组）
- * - y = f(lv)（使用模组，双边界平均）
- */
-export function buildCurveSeries(levelMin, levelMax, costLevels, mode, enchantReq) {
+function sampleLevels(levelMin, levelMax) {
   if (levelMin < 0 || levelMax < 0) throw new Error("level_neg");
   if (levelMin > levelMax) throw new Error("range_order");
   const span = levelMax - levelMin;
@@ -137,10 +131,40 @@ export function buildCurveSeries(levelMin, levelMax, costLevels, mode, enchantRe
   const xs = [];
   for (let x = levelMin; x <= levelMax; x += step) xs.push(x);
   if (xs[xs.length - 1] !== levelMax) xs.push(levelMax);
+  return { xs, step };
+}
 
+/**
+ * Tab2 扫掠曲线（双边界平均，兼容/自检）：
+ * - y = lv（未扣除）
+ * - y = max(0, lv - lv_cost)（不使用模组）
+ * - y = f(lv)（使用模组，双边界平均）
+ */
+export function buildCurveSeries(levelMin, levelMax, costLevels, mode, enchantReq) {
+  const { xs, step } = sampleLevels(levelMin, levelMax);
   const yNone = xs.map((x) => x);
   const yVanilla = xs.map((x) => Math.max(0, x - costLevels));
   const yMod = xs.map((x) => modAfterLevelAvg(x, costLevels, mode, enchantReq));
+  return { xs, yNone, yVanilla, yMod, step };
+}
+
+/**
+ * Tab2 扫掠曲线（与 Tab1 同口径）：各 lv 使用同一进度的 applyAtProgress。
+ */
+export function buildCurveSeriesExact(
+  levelMin,
+  levelMax,
+  costLevels,
+  mode,
+  enchantReq,
+  progress
+) {
+  const { xs, step } = sampleLevels(levelMin, levelMax);
+  const yNone = xs.map((x) => x);
+  const yVanilla = xs.map((x) => Math.max(0, x - costLevels));
+  const yMod = xs.map(
+    (x) => applyAtProgress(x, progress, costLevels, mode, enchantReq).exact.afterLevel
+  );
   return { xs, yNone, yVanilla, yMod, step };
 }
 
@@ -173,5 +197,9 @@ export function selfCheck() {
   const a = applyAtProgress(46, 0, 3, MODE_ANVIL, 30);
   if (a.exact.afterLevel !== a.start.afterLevel) return "applyAtProgress start mismatch";
   if (a.pay !== modPayXp(3, MODE_ANVIL)) return "applyAtProgress pay mismatch";
+  const ce = buildCurveSeriesExact(10, 12, 3, MODE_ANVIL, 30, 0);
+  if (ce.xs.join(",") !== "10,11,12") return "buildCurveSeriesExact xs failed";
+  const expect10 = applyAtProgress(10, 0, 3, MODE_ANVIL, 30).exact.afterLevel;
+  if (ce.yMod[0] !== expect10) return "buildCurveSeriesExact yMod failed";
   return null;
 }

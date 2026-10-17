@@ -364,6 +364,27 @@ button:disabled {
   outline-offset: 1px;
 }
 
+.gui-slot-drag-mode {
+  cursor: grab;
+  touch-action: none;
+}
+
+.gui-slot-lifted {
+  cursor: grabbing;
+}
+
+.gui-slot-lifted .gui-slot-item {
+  opacity: 0;
+}
+
+.gui-drag-ghost {
+  position: fixed;
+  z-index: 80;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(2px 2px 0 #000);
+}
+
 .gui-slot-fly .gui-slot-item {
   animation: gui-item-fly 0.28s ease-out forwards;
 }
@@ -655,6 +676,20 @@ button:disabled {
   border: 1px solid #3a4658;
   padding: 4px 6px;
   font: inherit;
+}
+
+.tab2-fields {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.tab2-left .mode-picker {
+  margin-top: 4px;
+}
+
+.tab2-left .actions {
+  margin-top: 4px;
 }
 
 .xp-demo {

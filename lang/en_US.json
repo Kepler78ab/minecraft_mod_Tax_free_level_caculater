@@ -2,8 +2,8 @@
   "meta": { "code": "en_US", "name": "English" },
   "app": {
     "title": "MC Tax Free Levels XP Calculator",
-    "version": "0.1.5",
-    "banner": "Drag the XP bar → click anvil result / enchant row to calculate → compare vanilla vs Tax Free",
+    "version": "0.1.6",
+    "banner": "Drag XP bar → click anvil result / enchant row → Tab2 uses the same progress for sweep curves",
     "tab1": "Single point",
     "tab2": "Range curves",
     "label_level": "Current level",
@@ -44,7 +44,9 @@
     "slot_item": "Item to enchant",
     "slot_lapis": "Lapis lazuli",
     "slot_reroll": "Click to reroll items",
-    "slot_take": "Click to take result and calculate",
+    "slot_take": "Tap the result to calculate",
+    "slot_take_drag": "Drag the result out of the slot to calculate",
+    "anvil_tip_drag": "Set level / drag progress, set bottle × N, then drag the result out of the slot. Click left/middle slots to reroll.",
     "enchantment_cost": "Enchantment Cost: {cost}",
     "rename_placeholder": "Item Name",
     "anvil_tip": "Set level / drag progress, set bottle × N, then click the result slot. Click left/middle slots to reroll.",
@@ -77,17 +79,19 @@
     "curve_title": "Sweep {min}~{max} | lv_cost={cost} | {mode}"
   },
   "tab2": {
-    "banner": "X = starting level, Y = level after cost. Curves: no cost / without mod / with mod; yellow dashed = mark level.",
+    "banner": "Pick anvil/enchant → bottle × N and draggable progress → plot. Mod curve uses that exact progress (same as Tab1).",
     "label_range_min": "Range min",
     "label_range_max": "Range max",
     "label_mark": "Mark level",
-    "hint_mark": "Yellow dashed line (usually your current level)",
+    "hint_mark": "XP bar below = mark level + shared sweep progress; yellow dashed marks the curve",
+    "summary_toggle": "Sweep summary (click to expand)",
     "summary_header": "======== Range curves ========",
     "summary_range": "Range: {min} ~ {max} (step {step})",
     "summary_cost": "Cost X={cost} | Mod flat XP={pay}",
+    "summary_progress": "Shared progress: {progress} / {need} XP (vs mark level bar)",
     "summary_mode": "Mode: {mode}",
     "summary_mark": "Mark lv={mark} → none {none} / vanilla {vanilla} / mod {mod}",
-    "summary_hint": "Higher curve = more levels kept; blue above red means the mod helps more."
+    "summary_hint": "Higher curve = more levels kept; blue above red means the mod helps. Re-plot after changing progress."
   },
   "result": {
     "toggle": "Text result (click to expand)",
