@@ -23,7 +23,40 @@
   "mode": {
     "anvil": "Anvil (0 → X)",
     "enchant": "Enchanting table (R-X → R)",
-    "base30": "Legacy / levelBase=30 (30-X → 30)"
+    "base30": "Legacy / levelBase=30 (30-X → 30)",
+    "anvil_short": "Anvil",
+    "enchant_short": "Enchant",
+    "base30_short": "Base 30"
+  },
+  "gui": {
+    "anvil_title": "Anvil",
+    "enchant_title": "Enchant",
+    "legacy_title": "Legacy cost (base 30)",
+    "your_level": "Your level",
+    "anvil_cost": "Level cost shown",
+    "enchant_req": "Table requirement R",
+    "enchant_cost": "Enchant option level",
+    "slot_left": "Left item",
+    "slot_right": "Right item",
+    "slot_out": "Result",
+    "anvil_tip": "Pick the anvil, enter level and cost, then look at the XP bars.",
+    "enchant_tip": "Tap option 1 / 2 / 3, or type the cost yourself.",
+    "legacy_tip": "Uses the old levelBase=30 XP cost.",
+    "anvil_btn": "Calculate on anvil",
+    "enchant_btn": "Calculate on table",
+    "legacy_btn": "Calculate legacy"
+  },
+  "xp": {
+    "placeholder": "Press the button on the left to compare XP bars: now / vanilla / mod.",
+    "title": "XP bar comparison",
+    "before": "Now",
+    "vanilla": "No mod",
+    "mod": "With mod",
+    "after_cost": "After the UI cost of {cost} levels",
+    "hint_before": "Before paying",
+    "hint_vanilla": "Vanilla drops levels; bar percent stays similar",
+    "hint_mod": "The mod spends flat XP, so you keep more levels",
+    "foot": "Green bar keeps about {kept} more levels than red"
   },
   "plot": {
     "ylabel": "Level",

@@ -2,8 +2,8 @@
   "meta": { "code": "zh_CN", "name": "中文" },
   "app": {
     "title": "MC Tax Free Levels 经验扣除计算器",
-    "version": "0.1.1",
-    "banner": "原版 XP 曲线 1.8+｜Tax Free Levels｜进度取刚开始 / 刚结束并平均｜Web 为准",
+    "version": "0.1.2",
+    "banner": "点图标选铁砧/附魔台 → 填等级与花费 → 右侧看经验条对比（装模组能多留多少级）",
     "tab1": "单点对比",
     "tab2": "范围曲线",
     "label_level": "当前等级",
@@ -23,7 +23,40 @@
   "mode": {
     "anvil": "铁砧（0 → X）",
     "enchant": "附魔台（R-X → R）",
-    "base30": "旧版 / levelBase=30（30-X → 30）"
+    "base30": "旧版 / levelBase=30（30-X → 30）",
+    "anvil_short": "铁砧",
+    "enchant_short": "附魔台",
+    "base30_short": "30级基准"
+  },
+  "gui": {
+    "anvil_title": "铁砧",
+    "enchant_title": "附魔",
+    "legacy_title": "旧版扣费（基准 30）",
+    "your_level": "你的等级",
+    "anvil_cost": "界面显示消耗等级",
+    "enchant_req": "附魔台需求等级 R",
+    "enchant_cost": "附魔选项等级",
+    "slot_left": "左边物品",
+    "slot_right": "右边物品",
+    "slot_out": "成品",
+    "anvil_tip": "点铁砧图标，填等级和消耗，看右边经验条。",
+    "enchant_tip": "点 1/2/3 级选项，或自己填消耗等级。",
+    "legacy_tip": "按 levelBase=30 的旧算法扣经验。",
+    "anvil_btn": "在铁砧上计算",
+    "enchant_btn": "在附魔台计算",
+    "legacy_btn": "按旧版计算"
+  },
+  "xp": {
+    "placeholder": "点左边按钮后，这里会用经验条对比「扣前 / 原版 / 模组」。",
+    "title": "经验条对比",
+    "before": "现在",
+    "vanilla": "不用模组",
+    "mod": "用模组",
+    "after_cost": "扣掉界面上的 {cost} 级之后",
+    "hint_before": "扣费前",
+    "hint_vanilla": "原版直接扣等级，进度条比例基本不变",
+    "hint_mod": "模组按固定经验扣，等级掉得更少",
+    "foot": "绿条比红条多留大约 {kept} 级"
   },
   "plot": {
     "ylabel": "等级",

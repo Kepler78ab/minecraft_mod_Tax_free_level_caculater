@@ -1,0 +1,12 @@
+Textures from the public minecraft-assets mirror of Mojang's resource pack
+(InventivetalentDev/minecraft-assets, version 1.20.4).
+
+Files:
+- anvil.png, anvil_top.png — block/anvil, block/anvil_top
+- enchant_top.png, enchant_side.png — enchanting_table_top / side
+- book.png — item/enchanted_book
+- lapis.png — item/lapis_lazuli
+- xp_bottle.png — item/experience_bottle
+
+Used only as in-game UI hints for this calculator.
+Not a Mojang product. Minecraft is a trademark of Mojang / Microsoft.

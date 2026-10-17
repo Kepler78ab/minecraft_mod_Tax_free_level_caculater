@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { drawCurveChart, drawHLineChart } from "./chart-canvas.js";
 import { createI18n, getSavedLang, loadLang, saveLang } from "./i18n.js";
+import { IMG, McImg, ModeIcon } from "./mc-icons.js";
 import {
   MODE_ANVIL,
   MODE_BASE30,
@@ -506,22 +507,215 @@ function ModeFields({ t, mode, setMode, enchantReq, setEnchantReq }) {
   `;
 }
 
+function ModePicker({ t, mode, setMode }) {
+  const items = [
+    { key: MODE_ANVIL, label: t("mode.anvil_short"), tip: t("mode.anvil") },
+    { key: MODE_ENCHANT, label: t("mode.enchant_short"), tip: t("mode.enchant") },
+    { key: MODE_BASE30, label: t("mode.base30_short"), tip: t("mode.base30") },
+  ];
+  return html`
+    <div class="mode-picker" role="tablist" aria-label=${t("app.label_mode")}>
+      ${items.map(
+        (it) => html`
+          <button
+            type="button"
+            class=${mode === it.key ? "mode-card active" : "mode-card"}
+            title=${it.tip}
+            onClick=${() => setMode(it.key)}
+          >
+            <${ModeIcon} mode=${it.key} size=${56} />
+            <span class="mode-card-label">${it.label}</span>
+          </button>
+        `
+      )}
+    </div>
+  `;
+}
+
+function XpBarRow({ label, level, progressPct, tone, hint }) {
+  const pct = Math.max(0, Math.min(100, progressPct));
+  return html`
+    <div class=${`xp-row tone-${tone}`}>
+      <div class="xp-row-head">
+        <span class="xp-row-label">${label}</span>
+        <span class="xp-row-lv">Lv ${level}</span>
+      </div>
+      <div class="xp-bar-track" title=${hint || ""}>
+        <div class="xp-bar-fill" style=${{ width: `${pct}%` }}></div>
+        <span class="xp-bar-text">${Math.round(pct)}%</span>
+      </div>
+    </div>
+  `;
+}
+
+function XpDemoPanel({ t, view }) {
+  if (!view) {
+    return html`
+      <div class="xp-demo empty">
+        <${McImg} src=${IMG.xpBottle} size=${40} alt="" />
+        <p>${t("xp.placeholder")}</p>
+      </div>
+    `;
+  }
+  return html`
+    <div class="xp-demo">
+      <div class="xp-demo-title">
+        <${McImg} src=${IMG.xpBottle} size=${28} alt="" />
+        <span>${t("xp.title")}</span>
+      </div>
+      <${XpBarRow}
+        label=${t("xp.before")}
+        level=${view.beforeLevel}
+        progressPct=${view.beforePct}
+        tone="before"
+        hint=${t("xp.hint_before")}
+      />
+      <div class="xp-arrow">${t("xp.after_cost", { cost: view.cost })}</div>
+      <${XpBarRow}
+        label=${t("xp.vanilla")}
+        level=${view.vanillaLevel}
+        progressPct=${view.vanillaPct}
+        tone="vanilla"
+        hint=${t("xp.hint_vanilla")}
+      />
+      <${XpBarRow}
+        label=${t("xp.mod")}
+        level=${view.modLevel}
+        progressPct=${view.modPct}
+        tone="mod"
+        hint=${t("xp.hint_mod")}
+      />
+      <p class="xp-foot">${t("xp.foot", { kept: view.kept })}</p>
+    </div>
+  `;
+}
+
+function AnvilPanel({ t, level, setLevel, cost, setCost, onCalc }) {
+  return html`
+    <div class="mc-gui anvil-gui">
+      <div class="mc-gui-title">
+        <${McImg} src=${IMG.anvilTop} size=${28} alt="" />
+        <span>${t("gui.anvil_title")}</span>
+      </div>
+      <div class="anvil-slots">
+        <div class="mc-slot" title=${t("gui.slot_left")}></div>
+        <span class="anvil-plus">+</span>
+        <div class="mc-slot" title=${t("gui.slot_right")}></div>
+        <span class="anvil-arrow">→</span>
+        <div class="mc-slot mc-slot-out" title=${t("gui.slot_out")}></div>
+      </div>
+      <div class="mc-gui-fields">
+        <label>
+          <span>${t("gui.your_level")}</span>
+          <input value=${level} onInput=${(e) => setLevel(e.target.value)} />
+        </label>
+        <label>
+          <span>${t("gui.anvil_cost")}</span>
+          <input value=${cost} onInput=${(e) => setCost(e.target.value)} />
+        </label>
+      </div>
+      <p class="mc-gui-tip">${t("gui.anvil_tip")}</p>
+      <button type="button" class="mc-primary" onClick=${onCalc}>
+        ${t("gui.anvil_btn")}
+      </button>
+    </div>
+  `;
+}
+
+function EnchantPanel({
+  t,
+  level,
+  setLevel,
+  cost,
+  setCost,
+  enchantReq,
+  setEnchantReq,
+  onCalc,
+}) {
+  const costN = Number(cost) || 1;
+  return html`
+    <div class="mc-gui enchant-gui">
+      <div class="mc-gui-title">
+        <${McImg} src=${IMG.enchantTop} size=${28} alt="" />
+        <span>${t("gui.enchant_title")}</span>
+        <${McImg} src=${IMG.lapis} size=${22} alt="" />
+      </div>
+      <div class="enchant-book-row">
+        <div class="mc-slot mc-slot-book">
+          <${McImg} src=${IMG.book} size=${36} alt="" />
+        </div>
+        <div class="enchant-options">
+          ${[1, 2, 3].map(
+            (n) => html`
+              <div
+                class=${costN === n ? "enchant-opt active" : "enchant-opt"}
+                onClick=${() => setCost(String(n))}
+              >
+                <span class="enchant-opt-runes">✧ ⌬ ✧</span>
+                <span class="enchant-opt-lv">${n}</span>
+              </div>
+            `
+          )}
+        </div>
+      </div>
+      <div class="mc-gui-fields">
+        <label>
+          <span>${t("gui.your_level")}</span>
+          <input value=${level} onInput=${(e) => setLevel(e.target.value)} />
+        </label>
+        <label>
+          <span>${t("gui.enchant_req")}</span>
+          <input
+            value=${enchantReq}
+            onInput=${(e) => setEnchantReq(e.target.value)}
+          />
+        </label>
+        <label>
+          <span>${t("gui.enchant_cost")}</span>
+          <input value=${cost} onInput=${(e) => setCost(e.target.value)} />
+        </label>
+      </div>
+      <p class="mc-gui-tip">${t("gui.enchant_tip")}</p>
+      <button type="button" class="mc-primary" onClick=${onCalc}>
+        ${t("gui.enchant_btn")}
+      </button>
+    </div>
+  `;
+}
+
+function LegacyPanel({ t, level, setLevel, cost, setCost, onCalc }) {
+  return html`
+    <div class="mc-gui legacy-gui">
+      <div class="mc-gui-title">
+        <${ModeIcon} mode="base30" size=${28} />
+        <span>${t("gui.legacy_title")}</span>
+      </div>
+      <div class="mc-gui-fields">
+        <label>
+          <span>${t("gui.your_level")}</span>
+          <input value=${level} onInput=${(e) => setLevel(e.target.value)} />
+        </label>
+        <label>
+          <span>${t("gui.anvil_cost")}</span>
+          <input value=${cost} onInput=${(e) => setCost(e.target.value)} />
+        </label>
+      </div>
+      <p class="mc-gui-tip">${t("gui.legacy_tip")}</p>
+      <button type="button" class="mc-primary" onClick=${onCalc}>
+        ${t("gui.legacy_btn")}
+      </button>
+    </div>
+  `;
+}
+
 function Tab1({ t, status }) {
   const [level, setLevel] = useState("46");
   const [cost, setCost] = useState("3");
   const [mode, setMode] = useState(MODE_ANVIL);
   const [enchantReq, setEnchantReq] = useState("30");
   const [resultText, setResultText] = useState("");
-  const [plotData, setPlotData] = useState(null);
+  const [xpView, setXpView] = useState(null);
   const [error, setError] = useState("");
-  const canvasRef = useRef(null);
-  const wrapRef = useRef(null);
-  const chart = useChart(canvasRef, wrapRef, t, "hline");
-
-  useEffect(() => {
-    if (plotData) chart.draw(plotData);
-    else chart.drawEmpty();
-  }, [plotData, chart, t]);
 
   function onCalc() {
     setError("");
@@ -532,18 +726,36 @@ function Tab1({ t, status }) {
       if (mode === MODE_ENCHANT) {
         req = parseNonNegInt(enchantReq, t("errors.name_enchant"), t);
       }
-      const { start, end, pay } = computeBoundaries(curLevel, costLevels, mode, req);
+      const { start, end, pay } = computeBoundaries(
+        curLevel,
+        costLevels,
+        mode,
+        req
+      );
       const lines = buildLevelHLines(curLevel, costLevels, mode, req);
       setResultText(
         buildResultText(t, curLevel, costLevels, mode, req, start, end, pay)
       );
-      setPlotData({
-        lv: curLevel,
+
+      // 示意：进度条取中间；模组侧用双边界平均进度
+      const beforePct = 50;
+      const vanillaPct = 50;
+      const avgProg =
+        (start.afterProgress / Math.max(1, xpToNext(start.afterLevel) || 1) +
+          end.afterProgress / Math.max(1, xpToNext(end.afterLevel) || 1)) /
+        2;
+      const modPct = Math.max(0, Math.min(100, avgProg * 100));
+      const modLevel = Math.round(lines.yMod);
+      setXpView({
+        beforeLevel: curLevel,
+        beforePct,
+        vanillaLevel: lines.yVanilla,
+        vanillaPct,
+        modLevel,
+        modPct,
         cost: costLevels,
-        modeLabel: t(`mode.${mode}`),
-        yNone: lines.yNone,
-        yVanilla: lines.yVanilla,
-        yMod: lines.yMod,
+        kept: Number((lines.yMod - lines.yVanilla).toFixed(1)),
+        pay,
       });
     } catch (e) {
       setError(translateLogicError(e, t));
@@ -552,32 +764,44 @@ function Tab1({ t, status }) {
 
   function onClear() {
     setResultText("");
-    setPlotData(null);
+    setXpView(null);
     setError("");
   }
 
   return html`
     <div class="layout">
-      <section class="panel">
-        <h2>${t("app.tab1")}</h2>
-        <div class="field">
-          <label>${t("app.label_level")}</label>
-          <input value=${level} onInput=${(e) => setLevel(e.target.value)} />
-        </div>
-        <div class="hint">${t("app.hint_level")}</div>
-        <div class="field">
-          <label>${t("app.label_cost")}</label>
-          <input value=${cost} onInput=${(e) => setCost(e.target.value)} />
-        </div>
-        <${ModeFields}
+      <section class="panel tab1-left">
+        <${ModePicker} t=${t} mode=${mode} setMode=${setMode} />
+        ${mode === MODE_ANVIL &&
+        html`<${AnvilPanel}
           t=${t}
-          mode=${mode}
-          setMode=${setMode}
+          level=${level}
+          setLevel=${setLevel}
+          cost=${cost}
+          setCost=${setCost}
+          onCalc=${onCalc}
+        />`}
+        ${mode === MODE_ENCHANT &&
+        html`<${EnchantPanel}
+          t=${t}
+          level=${level}
+          setLevel=${setLevel}
+          cost=${cost}
+          setCost=${setCost}
           enchantReq=${enchantReq}
           setEnchantReq=${setEnchantReq}
-        />
+          onCalc=${onCalc}
+        />`}
+        ${mode === MODE_BASE30 &&
+        html`<${LegacyPanel}
+          t=${t}
+          level=${level}
+          setLevel=${setLevel}
+          cost=${cost}
+          setCost=${setCost}
+          onCalc=${onCalc}
+        />`}
         <div class="actions">
-          <button type="button" onClick=${onCalc}>${t("app.btn_calc")}</button>
           <button type="button" class="secondary" onClick=${onClear}>
             ${t("app.btn_clear")}
           </button>
@@ -585,10 +809,8 @@ function Tab1({ t, status }) {
         <div class="error">${error}</div>
         <div class="status">${status}</div>
       </section>
-      <section class="panel chart-panel">
-        <div class="chart-wrap" ref=${wrapRef}>
-          <canvas ref=${canvasRef}></canvas>
-        </div>
+      <section class="panel xp-panel">
+        <${XpDemoPanel} t=${t} view=${xpView} />
       </section>
     </div>
     <section class="panel result-panel">
