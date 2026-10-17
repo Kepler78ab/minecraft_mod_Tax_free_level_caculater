@@ -66,6 +66,29 @@ body {
   line-height: 1.45;
 }
 
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+button.tab {
+  background: #243044;
+  color: var(--muted);
+}
+
+button.tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.hint-block {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin: 0 0 12px;
+}
+
 .layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -200,6 +223,18 @@ button:disabled {
   }
   .chart-wrap {
     height: 360px;
+  }
+}
+
+.chart-panel-tall .chart-wrap-tall,
+.chart-wrap-tall {
+  height: 420px;
+  min-height: 360px;
+}
+
+@media (min-width: 861px) {
+  .chart-wrap-tall {
+    height: 440px;
   }
 }
 

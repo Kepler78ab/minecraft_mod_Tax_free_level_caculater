@@ -159,3 +159,136 @@ export function drawHLineChart(canvas, payload) {
     lx += ctx.measureText(item.text).width + 16;
   }
 }
+
+/**
+ * Tab2 扫掠曲线（Canvas 回退）。
+ * payload: { title, xlabel, ylabel, legends, xs, yNone, yVanilla, yMod, markLevel?, empty? }
+ */
+export function drawCurveChart(canvas, payload) {
+  if (!canvas || !payload) return;
+  const { ctx, w, h } = fitCanvas(canvas);
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, w, h);
+
+  const pad = { top: 42, right: 24, bottom: 56, left: 52 };
+  const plotW = w - pad.left - pad.right;
+  const plotH = h - pad.top - pad.bottom;
+
+  ctx.fillStyle = COLORS.text;
+  ctx.font = "600 14px Segoe UI, Microsoft YaHei, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(payload.title || "—", pad.left, 22);
+
+  if (payload.empty || !payload.xs?.length) {
+    ctx.fillStyle = COLORS.muted;
+    ctx.font = "13px Segoe UI, Microsoft YaHei, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(payload.title || "—", pad.left + plotW / 2, pad.top + plotH / 2);
+    return;
+  }
+
+  const xs = payload.xs;
+  const series = [payload.yNone, payload.yVanilla, payload.yMod];
+  let yLo = Infinity;
+  let yHi = -Infinity;
+  for (const arr of series) {
+    for (const v of arr) {
+      if (v < yLo) yLo = v;
+      if (v > yHi) yHi = v;
+    }
+  }
+  if (yHi <= yLo) {
+    yLo = Math.max(0, yLo - 2);
+    yHi = yLo + 4;
+  } else {
+    const spanPad = Math.max(2, (yHi - yLo) * 0.08);
+    yLo = Math.max(0, yLo - spanPad);
+    yHi += spanPad;
+  }
+
+  const xMin = xs[0];
+  const xMax = xs[xs.length - 1];
+  const xToPx = (x) =>
+    pad.left + ((x - xMin) / Math.max(1, xMax - xMin)) * plotW;
+  const yToPx = (y) => pad.top + ((yHi - y) / (yHi - yLo)) * plotH;
+
+  ctx.strokeStyle = COLORS.grid;
+  ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+
+  const ticks = 5;
+  ctx.font = "11px Consolas, monospace";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i <= ticks; i++) {
+    const y = yLo + ((yHi - yLo) * i) / ticks;
+    const py = yToPx(y);
+    ctx.strokeStyle = COLORS.grid;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, py);
+    ctx.lineTo(pad.left + plotW, py);
+    ctx.stroke();
+    ctx.fillStyle = COLORS.muted;
+    ctx.fillText(String(Math.round(y)), pad.left - 6, py);
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillStyle = COLORS.muted;
+  ctx.fillText(String(xMin), xToPx(xMin), pad.top + plotH + 8);
+  ctx.fillText(String(xMax), xToPx(xMax), pad.top + plotH + 8);
+  ctx.fillText(payload.xlabel || "lv", pad.left + plotW / 2, pad.top + plotH + 26);
+
+  function poly(arr, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < xs.length; i++) {
+      const px = xToPx(xs[i]);
+      const py = yToPx(arr[i]);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+
+  poly(payload.yNone, COLORS.none);
+  poly(payload.yVanilla, COLORS.vanilla);
+  poly(payload.yMod, COLORS.mod);
+
+  if (payload.markLevel != null && payload.markLevel >= xMin && payload.markLevel <= xMax) {
+    const mx = xToPx(payload.markLevel);
+    ctx.strokeStyle = "#f0c14b";
+    ctx.setLineDash([6, 4]);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(mx, pad.top);
+    ctx.lineTo(mx, pad.top + plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#f0c14b";
+    ctx.font = "11px Segoe UI, Microsoft YaHei, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(`lv=${payload.markLevel}`, mx, pad.top - 4);
+  }
+
+  const legendItems = [
+    { color: COLORS.none, text: payload.legends.none },
+    { color: COLORS.vanilla, text: payload.legends.vanilla },
+    { color: COLORS.mod, text: payload.legends.mod },
+  ];
+  let lx = pad.left;
+  const ly = h - 14;
+  ctx.font = "11px Segoe UI, Microsoft YaHei, sans-serif";
+  ctx.textBaseline = "middle";
+  for (const item of legendItems) {
+    ctx.fillStyle = item.color;
+    ctx.fillRect(lx, ly - 4, 12, 8);
+    lx += 16;
+    ctx.fillStyle = COLORS.muted;
+    ctx.textAlign = "left";
+    ctx.fillText(item.text, lx, ly);
+    lx += ctx.measureText(item.text).width + 12;
+  }
+}

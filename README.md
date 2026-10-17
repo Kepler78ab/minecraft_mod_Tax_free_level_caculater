@@ -18,11 +18,11 @@ npx --yes serve .
 - 对比图：本地 Chart.js（`src/lib/chart.umd.min.js`，约 **200KB**）；失败时回退 Canvas
 - 语言包：`lang/zh_CN.json`、`lang/en_US.json`
 
-## 功能（0.1.0）
+## 功能（0.1.1）
 
-- Tab1 单点对比：铁砧 / 附魔台 / levelBase=30
+- Tab1 单点对比：铁砧 / 附魔台 / levelBase=30；三条水平对比线
+- Tab2 范围曲线：扫掠起始等级，`y=lv` / `y=lv−lv_cost` / `y=f(lv)`，黄虚线标记等级
 - 进度刚开始 / 刚结束 + 平均
-- 三条水平对比线
 - 中英切换（localStorage）
 
-不含：URL 分享参数、范围曲线 Tab2。
+不含：URL 分享参数。

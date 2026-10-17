@@ -98,6 +98,31 @@ export function buildLevelHLines(lv, costLevels, mode, enchantReq) {
   };
 }
 
+/**
+ * Tab2 扫掠曲线：横轴起始等级 lv，纵轴扣后等级。
+ * - y = lv（未扣除）
+ * - y = max(0, lv - lv_cost)（不使用模组）
+ * - y = f(lv)（使用模组，双边界平均）
+ */
+export function buildCurveSeries(levelMin, levelMax, costLevels, mode, enchantReq) {
+  if (levelMin < 0 || levelMax < 0) throw new Error("level_neg");
+  if (levelMin > levelMax) throw new Error("range_order");
+  const span = levelMax - levelMin;
+  if (span > 5000) throw new Error("range_too_large");
+
+  let step = 1;
+  if (span > 400) step = Math.ceil(span / 400);
+
+  const xs = [];
+  for (let x = levelMin; x <= levelMax; x += step) xs.push(x);
+  if (xs[xs.length - 1] !== levelMax) xs.push(levelMax);
+
+  const yNone = xs.map((x) => x);
+  const yVanilla = xs.map((x) => Math.max(0, x - costLevels));
+  const yMod = xs.map((x) => modAfterLevelAvg(x, costLevels, mode, enchantReq));
+  return { xs, yNone, yVanilla, yMod, step };
+}
+
 /** Return null if OK, else failed assertion message. */
 export function selfCheck() {
   const checks = [
@@ -121,5 +146,8 @@ export function selfCheck() {
   if (p.level !== 30 || p.progress !== 0) return "levelAndProgressFromTotal(1395) failed";
   const h = buildLevelHLines(46, 3, MODE_ANVIL, 30);
   if (h.yNone !== 46 || h.yVanilla !== 43) return "buildLevelHLines failed";
+  const c = buildCurveSeries(10, 12, 3, MODE_ANVIL, 30);
+  if (c.xs.join(",") !== "10,11,12") return "buildCurveSeries xs failed";
+  if (c.yVanilla.join(",") !== "7,8,9") return "buildCurveSeries vanilla failed";
   return null;
 }

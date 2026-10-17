@@ -2,17 +2,21 @@
   "meta": { "code": "en_US", "name": "English" },
   "app": {
     "title": "MC Tax Free Levels XP Calculator",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "banner": "Vanilla XP 1.8+ | Tax Free Levels | start / almost-full average | Web is source of truth",
+    "tab1": "Single point",
+    "tab2": "Range curves",
     "label_level": "Current level",
     "hint_level": "Progress uses level start and almost-full",
     "label_cost": "Vanilla cost levels X",
     "label_mode": "Mode",
     "label_enchant_req": "Enchant requirement R",
     "btn_calc": "Calculate",
+    "btn_plot": "Plot curves",
     "btn_clear": "Clear",
     "label_lang": "Language",
     "plot_title_empty": "Click Calculate to draw lines",
+    "plot_curve_empty": "Click Plot to draw sweep curves",
     "self_check_ok": "Self-check passed",
     "self_check_fail": "Self-check failed: {msg}"
   },
@@ -23,10 +27,29 @@
   },
   "plot": {
     "ylabel": "Level",
+    "ylabel_after": "Level after cost y",
+    "xlabel": "Starting level lv",
     "legend_none": "No cost y=lv",
     "legend_vanilla": "Without mod y=lv−lv_cost",
     "legend_mod": "With mod y=f(lv)",
-    "title": "lv={lv} | lv_cost={cost} | {mode}"
+    "legend_none_curve": "No cost  y=lv",
+    "legend_vanilla_curve": "Without mod  y=lv−lv_cost",
+    "legend_mod_curve": "With mod  y=f(lv)",
+    "title": "lv={lv} | lv_cost={cost} | {mode}",
+    "curve_title": "Sweep {min}~{max} | lv_cost={cost} | {mode}"
+  },
+  "tab2": {
+    "banner": "X = starting level, Y = level after cost. Curves: no cost / without mod / with mod; yellow dashed = mark level.",
+    "label_range_min": "Range min",
+    "label_range_max": "Range max",
+    "label_mark": "Mark level",
+    "hint_mark": "Yellow dashed line (usually your current level)",
+    "summary_header": "======== Range curves ========",
+    "summary_range": "Range: {min} ~ {max} (step {step})",
+    "summary_cost": "Cost X={cost} | Mod flat XP={pay}",
+    "summary_mode": "Mode: {mode}",
+    "summary_mark": "Mark lv={mark} → none {none} / vanilla {vanilla} / mod {mod}",
+    "summary_hint": "Higher curve = more levels kept; blue above red means the mod helps more."
   },
   "result": {
     "header": "======== Result ========",
@@ -53,8 +76,13 @@
     "empty": "{name} is required",
     "not_int": "{name} must be an integer",
     "negative": "{name} cannot be negative",
+    "range_order": "Range min cannot exceed max",
+    "range_too_large": "Range span too large (max 5000)",
     "name_level": "Current level",
     "name_cost": "Vanilla cost levels",
-    "name_enchant": "Enchant requirement"
+    "name_enchant": "Enchant requirement",
+    "name_range_min": "Range min",
+    "name_range_max": "Range max",
+    "name_mark": "Mark level"
   }
 }

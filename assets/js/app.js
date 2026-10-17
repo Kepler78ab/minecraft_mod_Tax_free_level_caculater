@@ -2,16 +2,18 @@ import { html } from "htm/preact";
 import { render } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import { drawHLineChart } from "./chart-canvas.js";
+import { drawCurveChart, drawHLineChart } from "./chart-canvas.js";
 import { createI18n, getSavedLang, loadLang, saveLang } from "./i18n.js";
 import {
   MODE_ANVIL,
   MODE_BASE30,
   MODE_ENCHANT,
+  buildCurveSeries,
   buildLevelHLines,
   computeBoundaries,
   levelAndProgressFromTotal,
   maxProgressAtLevel,
+  modPayXp,
   selfCheck,
   xpToNext,
 } from "./xp.js";
@@ -29,6 +31,17 @@ function parseNonNegInt(raw, name, t) {
   const v = Number(s);
   if (v < 0) throw new Error(t("errors.negative", { name }));
   return v;
+}
+
+function translateLogicError(e, t) {
+  const key = String(e.message || e);
+  const map = {
+    range_order: "errors.range_order",
+    range_too_large: "errors.range_too_large",
+    level_neg: "errors.negative",
+  };
+  if (map[key]) return t(map[key], { name: t("errors.name_level") });
+  return key;
 }
 
 function fmtBlock(t, headerKey, r) {
@@ -113,11 +126,57 @@ function getChartCtor() {
   return typeof window !== "undefined" ? window.Chart : undefined;
 }
 
-function useChart(canvasRef, wrapRef, t) {
+function markLinePlugin(markLevel) {
+  return {
+    id: "markLevelLine",
+    afterDraw(chart) {
+      if (markLevel == null) return;
+      const { ctx, chartArea, scales } = chart;
+      const xScale = scales.x;
+      if (!xScale || !chartArea) return;
+      const labels = chart.data.labels || [];
+      let idx = labels.findIndex((v) => Number(v) === Number(markLevel));
+      if (idx < 0) {
+        // 最近采样点
+        let best = -1;
+        let bestDist = Infinity;
+        labels.forEach((v, i) => {
+          const d = Math.abs(Number(v) - Number(markLevel));
+          if (d < bestDist) {
+            bestDist = d;
+            best = i;
+          }
+        });
+        idx = best;
+      }
+      if (idx < 0) return;
+      const x = xScale.getPixelForValue(idx);
+      ctx.save();
+      ctx.strokeStyle = "#f0c14b";
+      ctx.setLineDash([6, 4]);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x, chartArea.top);
+      ctx.lineTo(x, chartArea.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#f0c14b";
+      ctx.font = "12px Segoe UI, Microsoft YaHei, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`lv=${markLevel}`, x, chartArea.top - 6);
+      ctx.restore();
+    },
+  };
+}
+
+/** kind: 'hline' | 'curve' */
+function useChart(canvasRef, wrapRef, t, kind) {
   const lastPayloadRef = useRef(null);
   const chartInstRef = useRef(null);
   const tRef = useRef(t);
+  const kindRef = useRef(kind);
   tRef.current = t;
+  kindRef.current = kind;
 
   const destroyChartJs = () => {
     if (chartInstRef.current) {
@@ -126,10 +185,9 @@ function useChart(canvasRef, wrapRef, t) {
     }
   };
 
-  const paintWithChartJs = (canvas, data, tt) => {
+  const paintHLineChartJs = (canvas, data, tt) => {
     const ChartCtor = getChartCtor();
     if (!ChartCtor) return false;
-
     const empty = !data;
     const yNone = empty ? 0 : data.yNone;
     const yVanilla = empty ? 0 : data.yVanilla;
@@ -210,52 +268,184 @@ function useChart(canvasRef, wrapRef, t) {
     return true;
   };
 
-  const paintFallbackCanvas = (canvas, data, tt) => {
+  const paintCurveChartJs = (canvas, data, tt) => {
+    const ChartCtor = getChartCtor();
+    if (!ChartCtor || !data?.xs?.length) return false;
+
     destroyChartJs();
-    if (!data) {
-      drawHLineChart(canvas, {
-        title: tt("app.plot_title_empty"),
-        ylabel: tt("plot.ylabel"),
-        legends: {
-          none: tt("plot.legend_none"),
-          vanilla: tt("plot.legend_vanilla"),
-          mod: tt("plot.legend_mod"),
-        },
-        yNone: 0,
-        yVanilla: 0,
-        yMod: 0,
-        empty: true,
-      });
-      return;
-    }
-    drawHLineChart(canvas, {
-      title: tt("plot.title", {
-        lv: data.lv,
-        cost: data.cost,
-        mode: data.modeLabel,
-      }),
-      ylabel: tt("plot.ylabel"),
-      legends: {
-        none: `${tt("plot.legend_none")} = ${data.yNone}`,
-        vanilla: `${tt("plot.legend_vanilla")} = ${data.yVanilla}`,
-        mod: `${tt("plot.legend_mod")} = ${Number(data.yMod.toFixed(2))}`,
+    const allY = [...data.yNone, ...data.yVanilla, ...data.yMod];
+    const yLo = Math.min(...allY);
+    const yHi = Math.max(...allY);
+    const pad = yHi > yLo ? Math.max(2, (yHi - yLo) * 0.08) : 2;
+
+    chartInstRef.current = new ChartCtor(canvas, {
+      type: "line",
+      data: {
+        labels: data.xs.map(String),
+        datasets: [
+          {
+            label: tt("plot.legend_none_curve"),
+            data: data.yNone,
+            borderColor: "#2ca02c",
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0,
+          },
+          {
+            label: tt("plot.legend_vanilla_curve"),
+            data: data.yVanilla,
+            borderColor: "#d62728",
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0,
+          },
+          {
+            label: tt("plot.legend_mod_curve"),
+            data: data.yMod,
+            borderColor: "#1f77b4",
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0,
+          },
+        ],
       },
-      yNone: data.yNone,
-      yVanilla: data.yVanilla,
-      yMod: data.yMod,
-      empty: false,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          title: {
+            display: true,
+            text: tt("plot.curve_title", {
+              min: data.levelMin,
+              max: data.levelMax,
+              cost: data.cost,
+              mode: data.modeLabel,
+            }),
+            color: "#e7ecf3",
+            font: { size: 14 },
+          },
+          legend: { labels: { color: "#c5d0e0", boxWidth: 16 } },
+          markLevel: data.markLevel,
+        },
+        scales: {
+          x: {
+            title: { display: true, text: tt("plot.xlabel"), color: "#9aa8bc" },
+            ticks: {
+              color: "#9aa8bc",
+              maxTicksLimit: 10,
+              callback(v) {
+                const label = this.getLabelForValue(v);
+                return label;
+              },
+            },
+            grid: { color: "rgba(255,255,255,0.06)" },
+          },
+          y: {
+            min: Math.max(0, yLo - pad),
+            max: yHi + pad,
+            title: { display: true, text: tt("plot.ylabel_after"), color: "#9aa8bc" },
+            ticks: { color: "#9aa8bc" },
+            grid: { color: "rgba(255,255,255,0.08)" },
+          },
+        },
+      },
+      plugins: [markLinePlugin(data.markLevel)],
     });
+    return true;
   };
 
   const paint = (data) => {
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     const tt = tRef.current;
+    const k = kindRef.current;
     if (!canvas) return;
-    // 电脑端双栏布局时，尺寸未就绪则稍后再画
     if (wrap && (wrap.clientWidth < 40 || wrap.clientHeight < 40)) return;
-    const ok = paintWithChartJs(canvas, data, tt);
-    if (!ok) paintFallbackCanvas(canvas, data, tt);
+
+    if (k === "curve") {
+      if (!data) {
+        destroyChartJs();
+        drawCurveChart(canvas, {
+          title: tt("app.plot_curve_empty"),
+          xlabel: tt("plot.xlabel"),
+          ylabel: tt("plot.ylabel_after"),
+          legends: {
+            none: tt("plot.legend_none_curve"),
+            vanilla: tt("plot.legend_vanilla_curve"),
+            mod: tt("plot.legend_mod_curve"),
+          },
+          empty: true,
+        });
+        return;
+      }
+      if (!paintCurveChartJs(canvas, data, tt)) {
+        destroyChartJs();
+        drawCurveChart(canvas, {
+          title: tt("plot.curve_title", {
+            min: data.levelMin,
+            max: data.levelMax,
+            cost: data.cost,
+            mode: data.modeLabel,
+          }),
+          xlabel: tt("plot.xlabel"),
+          ylabel: tt("plot.ylabel_after"),
+          legends: {
+            none: tt("plot.legend_none_curve"),
+            vanilla: tt("plot.legend_vanilla_curve"),
+            mod: tt("plot.legend_mod_curve"),
+          },
+          xs: data.xs,
+          yNone: data.yNone,
+          yVanilla: data.yVanilla,
+          yMod: data.yMod,
+          markLevel: data.markLevel,
+          empty: false,
+        });
+      }
+      return;
+    }
+
+    // hline
+    if (!data) {
+      if (!paintHLineChartJs(canvas, null, tt)) {
+        destroyChartJs();
+        drawHLineChart(canvas, {
+          title: tt("app.plot_title_empty"),
+          ylabel: tt("plot.ylabel"),
+          legends: {
+            none: tt("plot.legend_none"),
+            vanilla: tt("plot.legend_vanilla"),
+            mod: tt("plot.legend_mod"),
+          },
+          yNone: 0,
+          yVanilla: 0,
+          yMod: 0,
+          empty: true,
+        });
+      }
+      return;
+    }
+    if (!paintHLineChartJs(canvas, data, tt)) {
+      destroyChartJs();
+      drawHLineChart(canvas, {
+        title: tt("plot.title", {
+          lv: data.lv,
+          cost: data.cost,
+          mode: data.modeLabel,
+        }),
+        ylabel: tt("plot.ylabel"),
+        legends: {
+          none: `${tt("plot.legend_none")} = ${data.yNone}`,
+          vanilla: `${tt("plot.legend_vanilla")} = ${data.yVanilla}`,
+          mod: `${tt("plot.legend_mod")} = ${Number(data.yMod.toFixed(2))}`,
+        },
+        yNone: data.yNone,
+        yVanilla: data.yVanilla,
+        yMod: data.yMod,
+        empty: false,
+      });
+    }
   };
 
   useEffect(() => {
@@ -269,7 +459,6 @@ function useChart(canvasRef, wrapRef, t) {
       ro = new ResizeObserver(redraw);
       ro.observe(wrap);
     }
-    // 延迟一帧，避开桌面端首屏 grid 宽度为 0
     const t1 = setTimeout(redraw, 50);
     const t2 = setTimeout(redraw, 200);
     return () => {
@@ -296,9 +485,28 @@ function useChart(canvasRef, wrapRef, t) {
   );
 }
 
-function App() {
-  const [langCode, setLangCode] = useState(getSavedLang);
-  const [i18n, setI18n] = useState(null);
+function ModeFields({ t, mode, setMode, enchantReq, setEnchantReq }) {
+  return html`
+    <div class="field">
+      <label>${t("app.label_mode")}</label>
+      <select value=${mode} onChange=${(e) => setMode(e.target.value)}>
+        ${MODES.map((m) => html`<option value=${m}>${t(`mode.${m}`)}</option>`)}
+      </select>
+    </div>
+    ${mode === MODE_ENCHANT &&
+    html`
+      <div class="field">
+        <label>${t("app.label_enchant_req")}</label>
+        <input
+          value=${enchantReq}
+          onInput=${(e) => setEnchantReq(e.target.value)}
+        />
+      </div>
+    `}
+  `;
+}
+
+function Tab1({ t, status }) {
   const [level, setLevel] = useState("46");
   const [cost, setCost] = useState("3");
   const [mode, setMode] = useState(MODE_ANVIL);
@@ -306,54 +514,16 @@ function App() {
   const [resultText, setResultText] = useState("");
   const [plotData, setPlotData] = useState(null);
   const [error, setError] = useState("");
-  const [status, setStatus] = useState("");
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
-  const t = useMemo(() => (i18n ? i18n.t.bind(i18n) : (k) => k), [i18n]);
-  const chart = useChart(canvasRef, wrapRef, t);
+  const chart = useChart(canvasRef, wrapRef, t, "hline");
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await loadLang(langCode);
-        if (cancelled) return;
-        setI18n(createI18n(data));
-        document.documentElement.lang = langCode.startsWith("zh") ? "zh-CN" : "en";
-        document.title = data.app?.title || "Tax Free Levels Calculator";
-      } catch (e) {
-        if (!cancelled) setError(String(e.message || e));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [langCode]);
-
-  useEffect(() => {
-    if (!i18n) return;
-    const msg = selfCheck();
-    if (msg) setStatus(t("app.self_check_fail", { msg }));
-    else setStatus(t("app.self_check_ok"));
-  }, [i18n, t]);
-
-  // 等 canvas 挂载后再画，避免 Preact 首帧 ref 为空
-  useEffect(() => {
-    if (!i18n) return;
     if (plotData) chart.draw(plotData);
     else chart.drawEmpty();
-  }, [i18n, plotData, chart]);
-
-  function onLangChange(code) {
-    setLangCode(code);
-    saveLang(code);
-    setResultText("");
-    setPlotData(null);
-    setError("");
-  }
+  }, [plotData, chart, t]);
 
   function onCalc() {
-    if (!i18n) return;
     setError("");
     try {
       const curLevel = parseNonNegInt(level, t("errors.name_level"), t);
@@ -364,8 +534,9 @@ function App() {
       }
       const { start, end, pay } = computeBoundaries(curLevel, costLevels, mode, req);
       const lines = buildLevelHLines(curLevel, costLevels, mode, req);
-      const text = buildResultText(t, curLevel, costLevels, mode, req, start, end, pay);
-      setResultText(text);
+      setResultText(
+        buildResultText(t, curLevel, costLevels, mode, req, start, end, pay)
+      );
       setPlotData({
         lv: curLevel,
         cost: costLevels,
@@ -375,7 +546,7 @@ function App() {
         yMod: lines.yMod,
       });
     } catch (e) {
-      setError(String(e.message || e));
+      setError(translateLogicError(e, t));
     }
   }
 
@@ -385,32 +556,10 @@ function App() {
     setError("");
   }
 
-  if (!i18n) {
-    return html`<div class="banner">Loading…</div>`;
-  }
-
   return html`
-    <div class="topbar">
-      <h1>
-        ${t("app.title")}
-        <span class="badge">${t("app.version")}</span>
-      </h1>
-      <div>
-        <label>${t("app.label_lang")} </label>
-        <select
-          value=${langCode}
-          onChange=${(e) => onLangChange(e.target.value)}
-        >
-          ${LANGS.map(
-            (l) => html`<option value=${l.code}>${l.name}</option>`
-          )}
-        </select>
-      </div>
-    </div>
-    <p class="banner">${t("app.banner")}</p>
     <div class="layout">
       <section class="panel">
-        <h2>${t("app.btn_calc")}</h2>
+        <h2>${t("app.tab1")}</h2>
         <div class="field">
           <label>${t("app.label_level")}</label>
           <input value=${level} onInput=${(e) => setLevel(e.target.value)} />
@@ -420,24 +569,13 @@ function App() {
           <label>${t("app.label_cost")}</label>
           <input value=${cost} onInput=${(e) => setCost(e.target.value)} />
         </div>
-        <div class="field">
-          <label>${t("app.label_mode")}</label>
-          <select value=${mode} onChange=${(e) => setMode(e.target.value)}>
-            ${MODES.map(
-              (m) => html`<option value=${m}>${t(`mode.${m}`)}</option>`
-            )}
-          </select>
-        </div>
-        ${mode === MODE_ENCHANT &&
-        html`
-          <div class="field">
-            <label>${t("app.label_enchant_req")}</label>
-            <input
-              value=${enchantReq}
-              onInput=${(e) => setEnchantReq(e.target.value)}
-            />
-          </div>
-        `}
+        <${ModeFields}
+          t=${t}
+          mode=${mode}
+          setMode=${setMode}
+          enchantReq=${enchantReq}
+          setEnchantReq=${setEnchantReq}
+        />
         <div class="actions">
           <button type="button" onClick=${onCalc}>${t("app.btn_calc")}</button>
           <button type="button" class="secondary" onClick=${onClear}>
@@ -456,6 +594,211 @@ function App() {
     <section class="panel result-panel">
       <pre>${resultText || "—"}</pre>
     </section>
+  `;
+}
+
+function Tab2({ t, status }) {
+  const [cost, setCost] = useState("3");
+  const [levelMin, setLevelMin] = useState("1");
+  const [levelMax, setLevelMax] = useState("100");
+  const [markLevel, setMarkLevel] = useState("46");
+  const [mode, setMode] = useState(MODE_ANVIL);
+  const [enchantReq, setEnchantReq] = useState("30");
+  const [summary, setSummary] = useState("");
+  const [plotData, setPlotData] = useState(null);
+  const [error, setError] = useState("");
+  const canvasRef = useRef(null);
+  const wrapRef = useRef(null);
+  const chart = useChart(canvasRef, wrapRef, t, "curve");
+
+  useEffect(() => {
+    if (plotData) chart.draw(plotData);
+    else chart.drawEmpty();
+  }, [plotData, chart, t]);
+
+  function onCalc() {
+    setError("");
+    try {
+      const costLevels = parseNonNegInt(cost, t("errors.name_cost"), t);
+      const minLv = parseNonNegInt(levelMin, t("errors.name_range_min"), t);
+      const maxLv = parseNonNegInt(levelMax, t("errors.name_range_max"), t);
+      const mark = parseNonNegInt(markLevel, t("errors.name_mark"), t);
+      let req = 30;
+      if (mode === MODE_ENCHANT) {
+        req = parseNonNegInt(enchantReq, t("errors.name_enchant"), t);
+      }
+      const series = buildCurveSeries(minLv, maxLv, costLevels, mode, req);
+      const pay = modPayXp(costLevels, mode, req);
+      const atMark = buildLevelHLines(mark, costLevels, mode, req);
+      setPlotData({
+        xs: series.xs,
+        yNone: series.yNone,
+        yVanilla: series.yVanilla,
+        yMod: series.yMod,
+        levelMin: minLv,
+        levelMax: maxLv,
+        cost: costLevels,
+        modeLabel: t(`mode.${mode}`),
+        markLevel: mark,
+      });
+      setSummary(
+        [
+          t("tab2.summary_header"),
+          t("tab2.summary_range", { min: minLv, max: maxLv, step: series.step }),
+          t("tab2.summary_cost", { cost: costLevels, pay }),
+          t("tab2.summary_mode", { mode: t(`mode.${mode}`) }),
+          t("tab2.summary_mark", {
+            mark,
+            none: atMark.yNone,
+            vanilla: atMark.yVanilla,
+            mod: Number(atMark.yMod.toFixed(2)),
+          }),
+          t("tab2.summary_hint"),
+        ].join("\n")
+      );
+    } catch (e) {
+      setError(translateLogicError(e, t));
+    }
+  }
+
+  function onClear() {
+    setSummary("");
+    setPlotData(null);
+    setError("");
+  }
+
+  return html`
+    <div class="layout">
+      <section class="panel">
+        <h2>${t("app.tab2")}</h2>
+        <p class="hint-block">${t("tab2.banner")}</p>
+        <div class="field">
+          <label>${t("app.label_cost")}</label>
+          <input value=${cost} onInput=${(e) => setCost(e.target.value)} />
+        </div>
+        <div class="field">
+          <label>${t("tab2.label_range_min")}</label>
+          <input value=${levelMin} onInput=${(e) => setLevelMin(e.target.value)} />
+        </div>
+        <div class="field">
+          <label>${t("tab2.label_range_max")}</label>
+          <input value=${levelMax} onInput=${(e) => setLevelMax(e.target.value)} />
+        </div>
+        <div class="field">
+          <label>${t("tab2.label_mark")}</label>
+          <input value=${markLevel} onInput=${(e) => setMarkLevel(e.target.value)} />
+        </div>
+        <div class="hint">${t("tab2.hint_mark")}</div>
+        <${ModeFields}
+          t=${t}
+          mode=${mode}
+          setMode=${setMode}
+          enchantReq=${enchantReq}
+          setEnchantReq=${setEnchantReq}
+        />
+        <div class="actions">
+          <button type="button" onClick=${onCalc}>${t("app.btn_plot")}</button>
+          <button type="button" class="secondary" onClick=${onClear}>
+            ${t("app.btn_clear")}
+          </button>
+        </div>
+        <div class="error">${error}</div>
+        <div class="status">${status}</div>
+      </section>
+      <section class="panel chart-panel chart-panel-tall">
+        <div class="chart-wrap chart-wrap-tall" ref=${wrapRef}>
+          <canvas ref=${canvasRef}></canvas>
+        </div>
+      </section>
+    </div>
+    <section class="panel result-panel">
+      <pre>${summary || "—"}</pre>
+    </section>
+  `;
+}
+
+function App() {
+  const [langCode, setLangCode] = useState(getSavedLang);
+  const [i18n, setI18n] = useState(null);
+  const [tab, setTab] = useState("tab1");
+  const [status, setStatus] = useState("");
+  const [bootError, setBootError] = useState("");
+  const t = useMemo(() => (i18n ? i18n.t.bind(i18n) : (k) => k), [i18n]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await loadLang(langCode);
+        if (cancelled) return;
+        setI18n(createI18n(data));
+        document.documentElement.lang = langCode.startsWith("zh") ? "zh-CN" : "en";
+        document.title = data.app?.title || "Tax Free Levels Calculator";
+      } catch (e) {
+        if (!cancelled) setBootError(String(e.message || e));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [langCode]);
+
+  useEffect(() => {
+    if (!i18n) return;
+    const msg = selfCheck();
+    if (msg) setStatus(t("app.self_check_fail", { msg }));
+    else setStatus(t("app.self_check_ok"));
+  }, [i18n, t]);
+
+  function onLangChange(code) {
+    setLangCode(code);
+    saveLang(code);
+    setBootError("");
+  }
+
+  if (bootError) {
+    return html`<div class="banner error">${bootError}</div>`;
+  }
+  if (!i18n) {
+    return html`<div class="banner">Loading…</div>`;
+  }
+
+  return html`
+    <div class="topbar">
+      <h1>
+        ${t("app.title")}
+        <span class="badge">${t("app.version")}</span>
+      </h1>
+      <div>
+        <label>${t("app.label_lang")} </label>
+        <select
+          value=${langCode}
+          onChange=${(e) => onLangChange(e.target.value)}
+        >
+          ${LANGS.map((l) => html`<option value=${l.code}>${l.name}</option>`)}
+        </select>
+      </div>
+    </div>
+    <p class="banner">${t("app.banner")}</p>
+    <div class="tabs">
+      <button
+        type="button"
+        class=${tab === "tab1" ? "tab active" : "tab"}
+        onClick=${() => setTab("tab1")}
+      >
+        ${t("app.tab1")}
+      </button>
+      <button
+        type="button"
+        class=${tab === "tab2" ? "tab active" : "tab"}
+        onClick=${() => setTab("tab2")}
+      >
+        ${t("app.tab2")}
+      </button>
+    </div>
+    ${tab === "tab1"
+      ? html`<${Tab1} t=${t} status=${status} />`
+      : html`<${Tab2} t=${t} status=${status} />`}
   `;
 }
 

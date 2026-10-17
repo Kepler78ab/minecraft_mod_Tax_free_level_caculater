@@ -2,17 +2,21 @@
   "meta": { "code": "zh_CN", "name": "中文" },
   "app": {
     "title": "MC Tax Free Levels 经验扣除计算器",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "banner": "原版 XP 曲线 1.8+｜Tax Free Levels｜进度取刚开始 / 刚结束并平均｜Web 为准",
+    "tab1": "单点对比",
+    "tab2": "范围曲线",
     "label_level": "当前等级",
     "hint_level": "进度自动取本级起点与将满终点",
     "label_cost": "原版扣除等级 X",
     "label_mode": "计算模式",
     "label_enchant_req": "附魔需求等级 R",
     "btn_calc": "计算",
+    "btn_plot": "绘制曲线",
     "btn_clear": "清空结果",
     "label_lang": "语言",
     "plot_title_empty": "点击「计算」显示对比线",
+    "plot_curve_empty": "点击「绘制曲线」显示扫掠图",
     "self_check_ok": "公式自检通过",
     "self_check_fail": "公式自检失败：{msg}"
   },
@@ -23,10 +27,29 @@
   },
   "plot": {
     "ylabel": "等级",
+    "ylabel_after": "扣后等级 y",
+    "xlabel": "起始等级 lv",
     "legend_none": "未扣除 y=lv",
     "legend_vanilla": "不使用模组 y=lv−lv_cost",
     "legend_mod": "使用模组 y=f(lv)",
-    "title": "lv={lv}｜lv_cost={cost}｜{mode}"
+    "legend_none_curve": "未扣除  y=lv",
+    "legend_vanilla_curve": "不使用模组  y=lv−lv_cost",
+    "legend_mod_curve": "使用模组  y=f(lv)",
+    "title": "lv={lv}｜lv_cost={cost}｜{mode}",
+    "curve_title": "扫掠 {min}~{max}｜lv_cost={cost}｜{mode}"
+  },
+  "tab2": {
+    "banner": "横轴=起始等级，纵轴=扣后等级。三条曲线：未扣除 / 不使用模组 / 使用模组；黄虚线标记当前等级。",
+    "label_range_min": "扫掠下限",
+    "label_range_max": "扫掠上限",
+    "label_mark": "标记等级",
+    "hint_mark": "黄虚线位置（一般为你的当前等级）",
+    "summary_header": "======== 范围曲线 ========",
+    "summary_range": "扫掠范围：{min} ~ {max}（采样步长 {step}）",
+    "summary_cost": "扣除等级 X={cost}｜模组固定 XP={pay}",
+    "summary_mode": "模式：{mode}",
+    "summary_mark": "标记 lv={mark} → 未扣除 {none} / 不使用模组 {vanilla} / 使用模组 {mod}",
+    "summary_hint": "曲线越高表示扣后剩余等级越多；蓝线相对红线越高，模组越划算。"
   },
   "result": {
     "header": "======== 计算结果 ========",
@@ -45,7 +68,7 @@
     "avg_spent": "  实扣总 XP（平均）：{v}",
     "avg_remain": "  平均剩余总经验 ≈ {total} → 约 {lv} 级 + 进度 {prog} XP",
     "compare_header": "【使用模组 vs 不使用模组】",
-    "compare_vanilla": "  不使用模组：扣后等级 = {after}（y = lv − {cost}），实扣等级 = {delta}",
+    "compare_vanilla": "  不使用模组：扣后等级 = {after}（x = lv − {cost}），实扣等级 = {delta}",
     "compare_mod": "  使用模组：扣后等级（平均）= {avg}（刚开始 {start} / 刚结束 {end}），实扣等级（平均）= {delta}",
     "compare_diff": "  差异：使用模组比不使用模组多保留约 {diff} 级"
   },
@@ -53,8 +76,13 @@
     "empty": "{name}不能为空",
     "not_int": "{name}必须是整数",
     "negative": "{name}不能为负",
+    "range_order": "扫掠下限不能大于上限",
+    "range_too_large": "扫掠跨度过大（上限 5000）",
     "name_level": "当前等级",
     "name_cost": "原版扣除等级",
-    "name_enchant": "附魔需求等级"
+    "name_enchant": "附魔需求等级",
+    "name_range_min": "扫掠下限",
+    "name_range_max": "扫掠上限",
+    "name_mark": "标记等级"
   }
 }
