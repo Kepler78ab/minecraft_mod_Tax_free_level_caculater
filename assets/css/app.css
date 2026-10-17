@@ -449,17 +449,9 @@ button:disabled {
   }
 }
 
-.gui-name-field {
-  position: absolute;
-  box-sizing: border-box;
-  display: block;
-  background: #000;
-  color: #fff;
-  font-weight: 400;
-  letter-spacing: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  pointer-events: none;
+.level-xp-prog .cost-bottle-x {
+  color: var(--text);
+  font-weight: 700;
 }
 
 .gui-cost-label {

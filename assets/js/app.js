@@ -61,8 +61,15 @@ function starterInv() {
     ITEM_POOL.weapons[3],
   ];
   const cells = srcs.map((src) => ({ src, infinite: true }));
-  while (cells.length < 9) cells.push(null);
+  while (cells.length < 36) cells.push(null);
   return cells;
+}
+
+/** 0–8 快捷栏 y=142；9–35 背包三行，从 y=84 起，与原版铁砧界面槽位一致 */
+function invSlotPos(index) {
+  if (index < 9) return { x: 8 + index * 18, y: 142 };
+  const n = index - 9;
+  return { x: 8 + (n % 9) * 18, y: 84 + Math.floor(n / 9) * 18 };
 }
 
 function dropIdAt(x, y) {
@@ -704,7 +711,7 @@ function LevelXpControl({ t, level, setLevel, progress, setProgress, scale = 2 }
 }
 
 /** 把原版经验条当作 [min, max] 整数滑条，数字可输入 */
-function XpValueBar({ label, value, setValue, min, max, hint }) {
+function XpValueBar({ label, value, setValue, min, max, hint, bottle = false }) {
   const trackRef = useRef(null);
   const dragging = useRef(false);
   const n = clampInt(value, min, max);
@@ -742,6 +749,8 @@ function XpValueBar({ label, value, setValue, min, max, hint }) {
       <div class="level-xp-head">
         <span class="level-xp-label">${label}</span>
         <label class="level-xp-prog">
+          ${bottle && html`<${McImg} src=${IMG.xpBottle} size=${22} alt="" />`}
+          ${bottle && html`<span class="cost-bottle-x">×</span>`}
           <input
             type="number"
             min=${min}
@@ -947,12 +956,13 @@ function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, 
     const curTrio = { ...trioRef.current };
     const curInv = invRef.current.slice();
     const invIndex = target.startsWith("inv-") ? Number(target.slice(4)) : -1;
-    const validInv = Number.isInteger(invIndex) && invIndex >= 0 && invIndex <= 8;
+    const validInv = Number.isInteger(invIndex) && invIndex >= 0 && invIndex <= 35;
 
     if (payload.from === "anvil-out") {
       if (!validInv) return;
       curInv[invIndex] = { src: payload.src, infinite: false };
       setInv(curInv);
+      setTrio({ left: null, right: null, out: null });
       onCalc();
       return;
     }
@@ -1072,65 +1082,44 @@ function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, 
             height: `${itemPx}px`,
           }}
         />`}
-        <div
-          class="gui-name-field"
-          style=${{
-            left: `${59 * s}px`,
-            top: `${20 * s}px`,
-            width: `${110 * s}px`,
-            height: `${16 * s}px`,
-            padding: `${4 * s}px 0 0 ${3 * s}px`,
-            fontSize: `${8 * s}px`,
-            lineHeight: `${8 * s}px`,
-            textShadow: `${s}px ${s}px 0 #3f3f3f`,
-          }}
-        >
-          ${t("gui.rename_placeholder")}
-        </div>
         <div class="gui-cost-label" style=${{ left: `${40 * s}px`, top: `${68 * s}px` }}>
           ${t("gui.enchantment_cost", { cost: costN })}
         </div>
+        ${dragFine &&
+        inv.map(
+          (cell, i) => html`
+            <${GuiSlot}
+              key=${i}
+              left=${invSlotPos(i).x * s}
+              top=${invSlotPos(i).y * s}
+              title=${cell?.infinite ? t("gui.inv_infinite") : t("gui.inv_slot")}
+              src=${cell ? cell.src : ""}
+              clickable=${!!cell}
+              dropId=${`inv-${i}`}
+              className=${dropHover === `inv-${i}` ? "drop-hover" : ""}
+              onPointerDown=${
+                cell
+                  ? (e) =>
+                      beginDrag(e, {
+                        src: cell.src,
+                        from: "inv",
+                        invIndex: i,
+                        infinite: !!cell.infinite,
+                      })
+                  : undefined
+              }
+            />
+            ${cell?.infinite &&
+            html`<span
+              class="mc-inv-inf"
+              style=${{
+                left: `${(invSlotPos(i).x + 8) * s}px`,
+                top: `${(invSlotPos(i).y + 8) * s}px`,
+              }}
+            >∞</span>`}
+          `
+        )}
       </div>
-      ${dragFine &&
-      html`
-        <div class="mc-inv">
-          <div class="mc-inv-label">${t("gui.inv_title")}</div>
-          <div class="mc-inv-row">
-            ${inv.map(
-              (cell, i) => html`
-                <button
-                  type="button"
-                  class=${`mc-inv-slot ${dropHover === `inv-${i}` ? "drop-hover" : ""}`}
-                  data-drop=${`inv-${i}`}
-                  title=${cell?.infinite ? t("gui.inv_infinite") : t("gui.inv_slot")}
-                  onPointerDown=${
-                    cell
-                      ? (e) =>
-                          beginDrag(e, {
-                            src: cell.src,
-                            from: "inv",
-                            invIndex: i,
-                            infinite: !!cell.infinite,
-                          })
-                      : undefined
-                  }
-                >
-                  ${cell &&
-                  html`<img
-                    class="mc-pixel"
-                    src=${cell.src}
-                    alt=""
-                    width="32"
-                    height="32"
-                    draggable=${false}
-                  />`}
-                  ${cell?.infinite && html`<span class="mc-inv-inf">∞</span>`}
-                </button>
-              `
-            )}
-          </div>
-        </div>
-      `}
       <${LevelXpControl}
         t=${t}
         level=${level}
@@ -1145,6 +1134,7 @@ function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, 
         setValue=${setCost}
         min=${COST_MIN}
         max=${COST_MAX}
+        bottle=${true}
       />
       <p class="mc-gui-tip">${dragFine ? t("gui.anvil_tip_inv") : t("gui.anvil_tip")}</p>
     </div>
@@ -1530,6 +1520,7 @@ function Tab2({ t, status }) {
             setValue=${setCost}
             min=${COST_MIN}
             max=${COST_MAX}
+            bottle=${true}
           />
           ${mode === MODE_ENCHANT &&
           html`

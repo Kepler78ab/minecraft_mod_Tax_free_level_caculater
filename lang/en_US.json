@@ -51,7 +51,7 @@
     "slot_drop_right": "Drop an inventory item here",
     "inv_title": "Inventory (∞ can be dragged again)",
     "inv_infinite": "Infinite item; dragging onto the anvil does not consume it",
-    "inv_slot": "Inventory slot; drop the result here",
+    "inv_slot": "Backpack or hotbar slot; drop the result here",
     "anvil_tip_drag": "Drag the result out of the slot to calculate.",
     "anvil_tip_inv": "Drag ∞ items from the inventory into the anvil slots, then drop the result back into the inventory to calculate.",
     "enchantment_cost": "Enchantment Cost: {cost}",

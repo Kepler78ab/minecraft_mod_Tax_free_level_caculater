@@ -51,7 +51,7 @@
     "slot_drop_right": "从物品栏拖物品到此格",
     "inv_title": "物品栏（∞ 可反复拖出）",
     "inv_infinite": "无限物品，拖到铁砧不会消耗",
-    "inv_slot": "物品栏格子，可放入成品",
+    "inv_slot": "背包或快捷栏，可放入成品",
     "anvil_tip_drag": "按住成品拖出格子后计算。",
     "anvil_tip_inv": "从物品栏把 ∞ 物品拖进铁砧左右格；再把成品拖回物品栏即计算。手机端仍是点成品。",
     "enchantment_cost": "附魔花费：{cost}",
