@@ -8,7 +8,11 @@ import {
   IMG,
   McImg,
   ModeIcon,
+  SgaText,
+  XP_BAR_H,
+  XP_BAR_W,
   randomAnvilTrio,
+  randomEnchantOptions,
   randomEnchantPair,
 } from "./mc-icons.js";
 import {
@@ -537,8 +541,39 @@ function ModePicker({ t, mode, setMode }) {
   `;
 }
 
+/** 原版 HUD 经验条 + 绿色等级数字（贴图来自 icons.png 裁切） */
+function McXpBar({ level, progressPct, hint, scale = 2 }) {
+  const pct = Math.max(0, Math.min(100, Number(progressPct) || 0));
+  const w = XP_BAR_W * scale;
+  const h = XP_BAR_H * scale;
+  return html`
+    <div class="mc-xp" title=${hint || ""}>
+      <div class="mc-xp-level">${level}</div>
+      <div class="mc-xp-track" style=${{ width: `${w}px`, height: `${h}px` }}>
+        <div
+          class="mc-xp-bg"
+          style=${{
+            backgroundImage: `url(${IMG.xpBarBg})`,
+            backgroundSize: `${w}px ${h}px`,
+          }}
+        ></div>
+        <div class="mc-xp-clip" style=${{ width: `${pct}%` }}>
+          <div
+            class="mc-xp-fill"
+            style=${{
+              width: `${w}px`,
+              height: `${h}px`,
+              backgroundImage: `url(${IMG.xpBarFill})`,
+              backgroundSize: `${w}px ${h}px`,
+            }}
+          ></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function XpBarRow({ icon, label, level, progressPct, tone, hint }) {
-  const pct = Math.max(0, Math.min(100, progressPct));
   return html`
     <div class=${`xp-row tone-${tone}`}>
       <div class="xp-row-head">
@@ -546,12 +581,8 @@ function XpBarRow({ icon, label, level, progressPct, tone, hint }) {
           ${icon && html`<${McImg} src=${icon} size=${20} alt="" />`}
           ${label}
         </span>
-        <span class="xp-row-lv">Lv ${level}</span>
       </div>
-      <div class="xp-bar-track" title=${hint || ""}>
-        <div class="xp-bar-fill" style=${{ width: `${pct}%` }}></div>
-        <span class="xp-bar-text">${Math.round(pct)}%</span>
-      </div>
+      <${McXpBar} level=${level} progressPct=${progressPct} hint=${hint} />
     </div>
   `;
 }
@@ -602,14 +633,24 @@ function XpDemoPanel({ t, view, mode }) {
   `;
 }
 
-function GuiSlot({ left, top, title, src, size = 32 }) {
+/** 原版槽位物品区 16×16；坐标为物品绘制原点（非边框外沿） */
+function GuiSlot({ left, top, title, src, scale = GUI_SCALE }) {
+  const size = 16 * scale;
   return html`
     <div
       class="gui-slot"
       title=${title}
-      style=${{ left: `${left}px`, top: `${top}px` }}
+      style=${{ left: `${left}px`, top: `${top}px`, width: `${size}px`, height: `${size}px` }}
     >
-      ${src && html`<${McImg} src=${src} size=${size} alt="" />`}
+      ${src &&
+      html`<img
+        class="mc-pixel gui-slot-item"
+        src=${src}
+        alt=""
+        width=${size}
+        height=${size}
+        draggable=${false}
+      />`}
     </div>
   `;
 }
@@ -647,6 +688,17 @@ function AnvilPanel({ t, level, setLevel, cost, setCost, onCalc }) {
           title=${t("gui.slot_out")}
           src=${trio.out}
         />
+        <div
+          class="gui-name-field"
+          style=${{
+            left: `${60 * s}px`,
+            top: `${24 * s}px`,
+            width: `${110 * s}px`,
+            height: `${12 * s}px`,
+          }}
+        >
+          ${t("gui.rename_placeholder")}
+        </div>
         <div class="gui-cost-label" style=${{ left: `${40 * s}px`, top: `${68 * s}px` }}>
           ${t("gui.enchantment_cost", { cost: costN })}
         </div>
@@ -685,8 +737,16 @@ function EnchantPanel({
   onCalc,
 }) {
   const [pair, setPair] = useState(() => randomEnchantPair());
+  const [opts, setOpts] = useState(() => randomEnchantOptions());
   const s = GUI_SCALE;
   const costN = Number(cost) || 1;
+  const glyphScale = s; // 8px 字形 × scale，与 GUI 同倍率
+
+  function rerollAll() {
+    setPair(randomEnchantPair());
+    setOpts(randomEnchantOptions());
+  }
+
   return html`
     <div class="mc-gui-wrap">
       <div
@@ -721,10 +781,34 @@ function EnchantPanel({
                 width: `${108 * s}px`,
                 height: `${19 * s}px`,
               }}
+              title=${t("gui.enchant_hover", { name: opts[i].hint, cost: n, lapis: n })}
               onClick=${() => setCost(String(n))}
             >
-              <span class="gui-enchant-runes">✧ ⌬ ✧</span>
-              <span class="gui-enchant-lv">${n}</span>
+              <span
+                class="gui-enchant-lapis"
+                style=${{
+                  left: `${1 * s}px`,
+                  top: `${1 * s}px`,
+                  width: `${16 * s}px`,
+                  height: `${16 * s}px`,
+                }}
+              >
+                <${McImg} src=${IMG.lapis} size=${16 * s} alt="" />
+              </span>
+              <span
+                class="gui-enchant-runes"
+                style=${{
+                  left: `${20 * s}px`,
+                  top: `${2 * s}px`,
+                  width: `${72 * s}px`,
+                  height: `${16 * s}px`,
+                }}
+              >
+                <${SgaText} text=${opts[i].phrase} scale=${glyphScale} />
+              </span>
+              <span class="gui-enchant-lv" style=${{ right: `${2 * s}px`, bottom: `${1 * s}px` }}>
+                ${n}
+              </span>
             </button>
           `
         )}
@@ -748,7 +832,7 @@ function EnchantPanel({
       </div>
       <p class="mc-gui-tip">${t("gui.enchant_tip")}</p>
       <div class="mc-gui-actions">
-        <button type="button" class="mc-secondary" onClick=${() => setPair(randomEnchantPair())}>
+        <button type="button" class="mc-secondary" onClick=${rerollAll}>
           ${t("gui.reroll")}
         </button>
         <button type="button" class="mc-primary" onClick=${onCalc}>
@@ -765,6 +849,7 @@ function Tab1({ t, status }) {
   const [mode, setMode] = useState(MODE_ANVIL);
   const [enchantReq, setEnchantReq] = useState("30");
   const [resultText, setResultText] = useState("");
+  const [resultOpen, setResultOpen] = useState(false);
   const [xpView, setXpView] = useState(null);
   const [error, setError] = useState("");
 
@@ -787,6 +872,7 @@ function Tab1({ t, status }) {
       setResultText(
         buildResultText(t, curLevel, costLevels, mode, req, start, end, pay)
       );
+      setResultOpen(false);
 
       // 示意：进度条取中间；模组侧用双边界平均进度
       const beforePct = 50;
@@ -813,12 +899,6 @@ function Tab1({ t, status }) {
     }
   }
 
-  function onClear() {
-    setResultText("");
-    setXpView(null);
-    setError("");
-  }
-
   return html`
     <div class="layout">
       <section class="panel tab1-left">
@@ -843,11 +923,6 @@ function Tab1({ t, status }) {
           setEnchantReq=${setEnchantReq}
           onCalc=${onCalc}
         />`}
-        <div class="actions">
-          <button type="button" class="secondary" onClick=${onClear}>
-            ${t("app.btn_clear")}
-          </button>
-        </div>
         <div class="error">${error}</div>
         <div class="status">${status}</div>
       </section>
@@ -856,7 +931,17 @@ function Tab1({ t, status }) {
       </section>
     </div>
     <section class="panel result-panel">
-      <pre>${resultText || "—"}</pre>
+      <button
+        type="button"
+        class="result-toggle"
+        onClick=${() => setResultOpen((v) => !v)}
+        aria-expanded=${resultOpen}
+      >
+        <span>${t("result.toggle")}</span>
+        <span class="result-toggle-mark">${resultOpen ? "▾" : "▸"}</span>
+      </button>
+      ${resultOpen &&
+      html`<pre class="result-body">${resultText || "—"}</pre>`}
     </section>
   `;
 }

@@ -320,7 +320,7 @@ button:disabled {
 .mc-gui-wrap {
   display: grid;
   gap: 10px;
-  justify-items: start;
+  justify-items: center;
   overflow-x: auto;
   max-width: 100%;
 }
@@ -338,11 +338,32 @@ button:disabled {
 
 .gui-slot {
   position: absolute;
-  width: 32px;
-  height: 32px;
   display: grid;
   place-items: center;
   pointer-events: none;
+  line-height: 0;
+}
+
+.gui-slot-item {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.gui-name-field {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  color: #e0e0e0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-shadow: 1px 1px 0 #000;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+  background: transparent;
 }
 
 .gui-cost-label {
@@ -358,32 +379,64 @@ button:disabled {
 
 .gui-enchant-opt {
   position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
-  background: transparent;
-  border: 2px solid transparent;
-  color: #ceb0ff;
-  font-weight: 700;
+  margin: 0;
+  padding: 0;
+  background: #1a1a1a88;
+  border: 1px solid #2a2a2a;
   cursor: pointer;
-  font-size: 13px;
+  overflow: hidden;
 }
 
 .gui-enchant-opt:hover,
 .gui-enchant-opt.active {
-  border-color: #80ff20;
-  background: #00000055;
+  background: #3a3060aa;
+  border-color: #c8b4ff;
+}
+
+.gui-enchant-lapis,
+.gui-enchant-runes,
+.gui-enchant-lv {
+  position: absolute;
+  pointer-events: none;
+}
+
+.gui-enchant-runes {
+  overflow: hidden;
 }
 
 .gui-enchant-lv {
   color: #80ff20;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
   text-shadow: 1px 1px 0 #000;
 }
 
-.gui-enchant-runes {
-  letter-spacing: 1px;
-  opacity: 0.9;
+.sga-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  line-height: 0;
+}
+
+.sga-glyph,
+.sga-space {
+  display: block;
+  flex: 0 0 auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.sga-glyph {
+  background-color: #685e4a;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.gui-enchant-opt:hover .sga-glyph,
+.gui-enchant-opt.active .sga-glyph {
+  background-color: #ffff80;
 }
 
 .mc-gui-fields {
@@ -459,14 +512,14 @@ button:disabled {
 }
 
 .xp-row {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .xp-row-head {
   display: flex;
   justify-content: space-between;
   font-size: 0.9rem;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .xp-row-label {
@@ -475,41 +528,62 @@ button:disabled {
   gap: 6px;
 }
 
-.xp-row-lv {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.xp-bar-track {
+/* 原版 HUD 经验条 */
+.mc-xp {
   position: relative;
-  height: 18px;
-  background: #1a120c;
-  border: 2px solid #3d2b1f;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
 }
 
-.xp-bar-fill {
-  height: 100%;
-  background: linear-gradient(#8cff3a, #3c8527);
-  width: 0;
+.mc-xp-level {
+  position: relative;
+  z-index: 1;
+  margin-bottom: -2px;
+  color: #80ff20;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow:
+    1px 0 0 #000,
+    -1px 0 0 #000,
+    0 1px 0 #000,
+    0 -1px 0 #000,
+    1px 1px 0 #000,
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000;
 }
 
-.tone-vanilla .xp-bar-fill {
-  background: linear-gradient(#ff8a7a, #b33a2b);
+.mc-xp-track {
+  position: relative;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  max-width: 100%;
 }
 
-.tone-before .xp-bar-fill {
-  background: linear-gradient(#ffe27a, #c6a15b);
-}
-
-.xp-bar-text {
+.mc-xp-bg {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  color: #fff;
-  text-shadow: 0 1px 0 #000;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+}
+
+.mc-xp-clip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.mc-xp-fill {
+  background-repeat: no-repeat;
+  background-position: 0 0;
 }
 
 .xp-arrow {
@@ -523,4 +597,31 @@ button:disabled {
   margin: 8px 0 0;
   color: #b6e38a;
   font-size: 0.9rem;
+}
+
+.result-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #243044;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.result-toggle:hover {
+  background: #2c3a52;
+}
+
+.result-toggle-mark {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.result-body {
+  margin: 10px 0 0;
 }

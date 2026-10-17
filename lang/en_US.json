@@ -2,7 +2,7 @@
   "meta": { "code": "en_US", "name": "English" },
   "app": {
     "title": "MC Tax Free Levels XP Calculator",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "banner": "Pick anvil / enchant GUI → enter level & cost → grass = vanilla, mod icon = Tax Free",
     "tab1": "Single point",
     "tab2": "Range curves",
@@ -41,8 +41,10 @@
     "slot_item": "Item to enchant",
     "slot_lapis": "Lapis lazuli",
     "enchantment_cost": "Enchantment Cost: {cost}",
+    "rename_placeholder": "Item Name",
     "anvil_tip": "Slots show random gear/books. Enter level & cost, then calculate to compare vanilla vs mod.",
-    "enchant_tip": "Tap an enchant option for the cost, or type it; R is the table requirement.",
+    "enchant_tip": "The right side uses vanilla Standard Galactic runes (cosmetic). Click a row to set the cost; hover for a sample enchant name.",
+    "enchant_hover": "{name} | Lapis {lapis} | Level {cost}",
     "anvil_btn": "Calculate on anvil",
     "enchant_btn": "Calculate on table",
     "reroll": "Reroll items"
@@ -86,6 +88,7 @@
     "summary_hint": "Higher curve = more levels kept; blue above red means the mod helps more."
   },
   "result": {
+    "toggle": "Text result (click to expand)",
     "header": "======== Result ========",
     "footer": "========================",
     "mode": "Mode: {mode}",

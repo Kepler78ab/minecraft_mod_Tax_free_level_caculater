@@ -1,5 +1,5 @@
 Textures from the public minecraft-assets mirror of Mojang's resource pack
-(InventivetalentDev/minecraft-assets, version 1.20.4).
+(InventivetalentDev/minecraft-assets, versions 1.20.1 / 1.20.4).
 
 Files:
 - anvil.png, anvil_top.png — block/anvil, block/anvil_top
@@ -7,6 +7,10 @@ Files:
 - book.png — item/enchanted_book
 - lapis.png — item/lapis_lazuli
 - xp_bottle.png — item/experience_bottle
+- gui_anvil.png / gui_enchant.png — gui/container/*
+- xp_bar_bg.png / xp_bar_fill.png — cropped from gui/icons.png
+  (UV empty 0,64 182x5; fill 0,69 182x5)
+- ascii_sga.png — font/ascii_sga.png (Standard Galactic Alphabet)
 
 Used only as in-game UI hints for this calculator.
 Not a Mojang product. Minecraft is a trademark of Mojang / Microsoft.

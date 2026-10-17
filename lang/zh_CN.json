@@ -2,7 +2,7 @@
   "meta": { "code": "zh_CN", "name": "中文" },
   "app": {
     "title": "MC Tax Free Levels 经验扣除计算器",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "banner": "点铁砧/附魔台 → 在原版 GUI 里填等级与花费 → 右侧草方块=原版、模组图标=Tax Free",
     "tab1": "单点对比",
     "tab2": "范围曲线",
@@ -41,8 +41,10 @@
     "slot_item": "待附魔物品",
     "slot_lapis": "青金石",
     "enchantment_cost": "附魔花费：{cost}",
+    "rename_placeholder": "物品名称",
     "anvil_tip": "三格是随机装备/附魔书示意。填等级与消耗后点计算，右侧对比原版与模组。",
-    "enchant_tip": "点右侧附魔选项选等级，或自己填消耗；R 是附魔台需求等级。",
+    "enchant_tip": "右侧是原版银河字母装饰文案（与真实附魔无关）。点一行选消耗等级；悬停可看示意附魔名。",
+    "enchant_hover": "{name}｜青金石 {lapis}｜等级 {cost}",
     "anvil_btn": "在铁砧上计算",
     "enchant_btn": "在附魔台计算",
     "reroll": "换一批物品"
@@ -86,6 +88,7 @@
     "summary_hint": "曲线越高表示扣后剩余等级越多；蓝线相对红线越高，模组越划算。"
   },
   "result": {
+    "toggle": "文字计算结果（点击展开）",
     "header": "======== 计算结果 ========",
     "footer": "========================",
     "mode": "模式：{mode}",
