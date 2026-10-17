@@ -31,17 +31,23 @@ import {
 
 const GUI_SCALE = 2;
 const DRAG_TAKE_PX = 12;
-/** 铁砧 Too Expensive 为 40 级；附魔台绿字最高 30，消耗条用 0–40 */
+/** 滑条下限固定 0；上限可在各 Tab 底部「上限设置」里改（有去 Too Expensive 的 mod） */
 const COST_MIN = 0;
-const COST_MAX = 40;
-/** 扫掠覆盖 16/31 经验拐点，又让 182px 经验条能点中每一级 */
+const DEFAULT_COST_MAX = 40;
+const DEFAULT_LEVEL_MAX = 200;
 const SWEEP_MIN = 0;
-const SWEEP_MAX = 200;
+const DEFAULT_SWEEP_MAX = 200;
+/** 上限设置本身的硬顶，避免输入炸掉 UI */
+const LIMIT_SETTING_CAP = 99999;
 
 function clampInt(raw, min, max) {
   const n = Math.round(Number(raw));
   if (!Number.isFinite(n)) return min;
   return Math.max(min, Math.min(max, n));
+}
+
+function parseLimitMax(raw, fallback) {
+  return clampInt(raw, 1, LIMIT_SETTING_CAP) || fallback;
 }
 
 function prefersDragTake() {
@@ -608,10 +614,18 @@ function McXpBar({ level, progressPct, hint, scale = 2 }) {
 }
 
 /** 可编辑等级 + 可拖经验条 + 进度 XP 输入 */
-function LevelXpControl({ t, level, setLevel, progress, setProgress, scale = 2 }) {
+function LevelXpControl({
+  t,
+  level,
+  setLevel,
+  progress,
+  setProgress,
+  levelMax = DEFAULT_LEVEL_MAX,
+  scale = 2,
+}) {
   const trackRef = useRef(null);
   const dragging = useRef(false);
-  const lvNum = Math.max(0, Number(level) || 0);
+  const lvNum = Math.max(0, Math.min(levelMax, Number(level) || 0));
   const need = xpToNext(lvNum);
   const maxP = maxProgressAtLevel(lvNum);
   const prog = clampProgress(lvNum, progress);
@@ -644,11 +658,14 @@ function LevelXpControl({ t, level, setLevel, progress, setProgress, scale = 2 }
   }, [level, need]);
 
   function onLevelInput(raw) {
-    setLevel(raw);
     const n = Number(String(raw).trim());
     if (Number.isFinite(n) && n >= 0) {
-      setProgress(clampProgress(Math.floor(n), progress));
+      const capped = Math.min(Math.floor(n), levelMax);
+      setLevel(String(capped));
+      setProgress(clampProgress(capped, progress));
+      return;
     }
+    setLevel(raw);
   }
 
   return html`
@@ -672,6 +689,7 @@ function LevelXpControl({ t, level, setLevel, progress, setProgress, scale = 2 }
           class="mc-xp-level-input"
           type="number"
           min="0"
+          max=${levelMax}
           value=${level}
           onInput=${(e) => onLevelInput(e.target.value)}
           aria-label=${t("gui.your_level")}
@@ -915,7 +933,68 @@ function GuiSlot({
   `;
 }
 
-function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, onCalc }) {
+function LimitsPanel({ t, open, setOpen, children }) {
+  return html`
+    <section class="panel result-panel limits-panel">
+      <button
+        type="button"
+        class="result-toggle"
+        onClick=${() => setOpen((v) => !v)}
+        aria-expanded=${open}
+      >
+        <span>${t("limits.toggle")}</span>
+        <span class="result-toggle-mark">${open ? "▾" : "▸"}</span>
+      </button>
+      ${open && html`<div class="limits-body">${children}</div>`}
+    </section>
+  `;
+}
+
+function LimitField({ label, value, onChange, hint }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  function commit() {
+    onChange(draft);
+  }
+
+  return html`
+    <label class="limit-field">
+      <span class="limit-field-label">${label}</span>
+      <input
+        type="number"
+        min="1"
+        max=${LIMIT_SETTING_CAP}
+        value=${draft}
+        onInput=${(e) => setDraft(e.target.value)}
+        onBlur=${commit}
+        onKeyDown=${(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+            e.currentTarget.blur();
+          }
+        }}
+      />
+      ${hint && html`<span class="limit-field-hint">${hint}</span>`}
+    </label>
+  `;
+}
+
+function AnvilPanel({
+  t,
+  level,
+  setLevel,
+  progress,
+  setProgress,
+  cost,
+  setCost,
+  onCalc,
+  levelMax = DEFAULT_LEVEL_MAX,
+  costMax = DEFAULT_COST_MAX,
+}) {
   const dragFine = useMemo(() => prefersDragTake(), []);
   const [trio, setTrio] = useState(() =>
     prefersDragTake()
@@ -1144,14 +1223,15 @@ function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, 
         setLevel=${setLevel}
         progress=${progress}
         setProgress=${setProgress}
+        levelMax=${levelMax}
       />
       <${XpValueBar}
         label=${t("gui.anvil_cost")}
-        hint=${t("gui.cost_range_hint")}
+        hint=${t("gui.cost_range_hint", { max: costMax })}
         value=${cost}
         setValue=${setCost}
         min=${COST_MIN}
-        max=${COST_MAX}
+        max=${costMax}
         bottle=${true}
       />
       <p class="mc-gui-tip">${dragFine ? t("gui.anvil_tip_inv") : t("gui.anvil_tip")}</p>
@@ -1172,6 +1252,8 @@ function EnchantPanel({
   enchantReq,
   setEnchantReq,
   onCalc,
+  levelMax = DEFAULT_LEVEL_MAX,
+  costMax = DEFAULT_COST_MAX,
 }) {
   const [pair, setPair] = useState(() => randomEnchantPair());
   const [opts, setOpts] = useState(() => randomEnchantOptions());
@@ -1303,14 +1385,15 @@ function EnchantPanel({
         setLevel=${setLevel}
         progress=${progress}
         setProgress=${setProgress}
+        levelMax=${levelMax}
       />
       <${XpValueBar}
         label=${t("gui.enchant_cost")}
-        hint=${t("gui.cost_range_hint")}
+        hint=${t("gui.cost_range_hint", { max: costMax })}
         value=${costs[activeIdx]}
-        setValue=${(raw) => setCostAt(activeIdx, String(clampInt(raw, COST_MIN, COST_MAX)))}
+        setValue=${(raw) => setCostAt(activeIdx, String(clampInt(raw, COST_MIN, costMax)))}
         min=${COST_MIN}
-        max=${COST_MAX}
+        max=${costMax}
         bottle=${true}
       />
       <label class="enchant-req-field">
@@ -1335,6 +1418,9 @@ function Tab1({ t, status }) {
   const [enchantReq, setEnchantReq] = useState("30");
   const [resultText, setResultText] = useState("");
   const [resultOpen, setResultOpen] = useState(false);
+  const [limitsOpen, setLimitsOpen] = useState(false);
+  const [levelMax, setLevelMax] = useState(DEFAULT_LEVEL_MAX);
+  const [costMax, setCostMax] = useState(DEFAULT_COST_MAX);
   const [xpView, setXpView] = useState(null);
   const [error, setError] = useState("");
 
@@ -1413,6 +1499,8 @@ function Tab1({ t, status }) {
           cost=${cost}
           setCost=${setCost}
           onCalc=${() => onCalc()}
+          levelMax=${levelMax}
+          costMax=${costMax}
         />`}
         ${mode === MODE_ENCHANT &&
         html`<${EnchantPanel}
@@ -1428,6 +1516,8 @@ function Tab1({ t, status }) {
           enchantReq=${enchantReq}
           setEnchantReq=${setEnchantReq}
           onCalc=${onCalc}
+          levelMax=${levelMax}
+          costMax=${costMax}
         />`}
         <div class="error">${error}</div>
         <div class="status">${status}</div>
@@ -1449,6 +1539,36 @@ function Tab1({ t, status }) {
       ${resultOpen &&
       html`<pre class="result-body">${resultText || "—"}</pre>`}
     </section>
+    <${LimitsPanel} t=${t} open=${limitsOpen} setOpen=${setLimitsOpen}>
+      <p class="limits-hint">${t("limits.hint")}</p>
+      <${LimitField}
+        label=${t("limits.level_max")}
+        value=${levelMax}
+        hint=${t("limits.level_max_hint", { def: DEFAULT_LEVEL_MAX })}
+        onChange=${(raw) => {
+          const n = parseLimitMax(raw, DEFAULT_LEVEL_MAX);
+          setLevelMax(n);
+          const lv = Number(level);
+          if (Number.isFinite(lv) && lv > n) {
+            setLevel(String(n));
+            setProgress(clampProgress(n, progress));
+          }
+        }}
+      />
+      <${LimitField}
+        label=${t("limits.cost_max")}
+        value=${costMax}
+        hint=${t("limits.cost_max_hint", { def: DEFAULT_COST_MAX })}
+        onChange=${(raw) => {
+          const n = parseLimitMax(raw, DEFAULT_COST_MAX);
+          setCostMax(n);
+          if (clampInt(cost, COST_MIN, LIMIT_SETTING_CAP) > n) setCost(String(n));
+          setEnchantCosts((prev) =>
+            prev.map((c) => (clampInt(c, COST_MIN, LIMIT_SETTING_CAP) > n ? String(n) : c))
+          );
+        }}
+      />
+    <//>
   `;
 }
 
@@ -1462,6 +1582,9 @@ function Tab2({ t, status }) {
   const [enchantReq, setEnchantReq] = useState("30");
   const [summary, setSummary] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [limitsOpen, setLimitsOpen] = useState(false);
+  const [costMax, setCostMax] = useState(DEFAULT_COST_MAX);
+  const [sweepMax, setSweepMax] = useState(DEFAULT_SWEEP_MAX);
   const [plotData, setPlotData] = useState(null);
   const [error, setError] = useState("");
   const canvasRef = useRef(null);
@@ -1542,11 +1665,11 @@ function Tab2({ t, status }) {
         <div class="tab2-fields">
           <${XpValueBar}
             label=${t("app.label_cost")}
-            hint=${t("gui.cost_range_hint")}
+            hint=${t("gui.cost_range_hint", { max: costMax })}
             value=${cost}
             setValue=${setCost}
             min=${COST_MIN}
-            max=${COST_MAX}
+            max=${costMax}
             bottle=${true}
           />
           ${mode === MODE_ENCHANT &&
@@ -1561,27 +1684,27 @@ function Tab2({ t, status }) {
           `}
           <${XpValueBar}
             label=${t("tab2.label_range_min")}
-            hint=${t("tab2.range_hint")}
+            hint=${t("tab2.range_hint", { max: sweepMax })}
             value=${levelMin}
             setValue=${(raw) => {
-              const n = clampInt(raw, SWEEP_MIN, SWEEP_MAX);
+              const n = clampInt(raw, SWEEP_MIN, sweepMax);
               setLevelMin(String(n));
-              if (n > clampInt(levelMax, SWEEP_MIN, SWEEP_MAX)) setLevelMax(String(n));
+              if (n > clampInt(levelMax, SWEEP_MIN, sweepMax)) setLevelMax(String(n));
             }}
             min=${SWEEP_MIN}
-            max=${SWEEP_MAX}
+            max=${sweepMax}
           />
           <${XpValueBar}
             label=${t("tab2.label_range_max")}
-            hint=${t("tab2.range_hint")}
+            hint=${t("tab2.range_hint", { max: sweepMax })}
             value=${levelMax}
             setValue=${(raw) => {
-              const n = clampInt(raw, SWEEP_MIN, SWEEP_MAX);
+              const n = clampInt(raw, SWEEP_MIN, sweepMax);
               setLevelMax(String(n));
-              if (n < clampInt(levelMin, SWEEP_MIN, SWEEP_MAX)) setLevelMin(String(n));
+              if (n < clampInt(levelMin, SWEEP_MIN, sweepMax)) setLevelMin(String(n));
             }}
             min=${SWEEP_MIN}
-            max=${SWEEP_MAX}
+            max=${sweepMax}
           />
           <p class="hint">${t("tab2.hint_mark")}</p>
           <${LevelXpControl}
@@ -1590,6 +1713,7 @@ function Tab2({ t, status }) {
             setLevel=${setMarkLevel}
             progress=${progress}
             setProgress=${setProgress}
+            levelMax=${sweepMax}
           />
         </div>
         <div class="actions">
@@ -1617,6 +1741,37 @@ function Tab2({ t, status }) {
       ${summaryOpen &&
       html`<pre class="result-body">${summary || "—"}</pre>`}
     </section>
+    <${LimitsPanel} t=${t} open=${limitsOpen} setOpen=${setLimitsOpen}>
+      <p class="limits-hint">${t("limits.hint")}</p>
+      <${LimitField}
+        label=${t("limits.cost_max")}
+        value=${costMax}
+        hint=${t("limits.cost_max_hint", { def: DEFAULT_COST_MAX })}
+        onChange=${(raw) => {
+          const n = parseLimitMax(raw, DEFAULT_COST_MAX);
+          setCostMax(n);
+          if (clampInt(cost, COST_MIN, LIMIT_SETTING_CAP) > n) setCost(String(n));
+        }}
+      />
+      <${LimitField}
+        label=${t("limits.sweep_max")}
+        value=${sweepMax}
+        hint=${t("limits.sweep_max_hint", { def: DEFAULT_SWEEP_MAX })}
+        onChange=${(raw) => {
+          const n = parseLimitMax(raw, DEFAULT_SWEEP_MAX);
+          setSweepMax(n);
+          const lo = clampInt(levelMin, SWEEP_MIN, LIMIT_SETTING_CAP);
+          const hi = clampInt(levelMax, SWEEP_MIN, LIMIT_SETTING_CAP);
+          if (hi > n) setLevelMax(String(n));
+          if (lo > n) setLevelMin(String(n));
+          const mark = Number(markLevel);
+          if (Number.isFinite(mark) && mark > n) {
+            setMarkLevel(String(n));
+            setProgress(clampProgress(n, progress));
+          }
+        }}
+      />
+    <//>
   `;
 }
 
@@ -1667,22 +1822,13 @@ function App() {
   }
 
   return html`
-    <div class="topbar">
-      <h1>
-        ${t("app.title")}
+    <header class="app-header">
+      <h1 class="app-title-main">${t("app.title_main")}</h1>
+      <p class="app-title-sub">
+        ${t("app.title_sub")}
         <span class="badge">${t("app.version")}</span>
-      </h1>
-      <div>
-        <label>${t("app.label_lang")} </label>
-        <select
-          value=${langCode}
-          onChange=${(e) => onLangChange(e.target.value)}
-        >
-          ${LANGS.map((l) => html`<option value=${l.code}>${l.name}</option>`)}
-        </select>
-      </div>
-    </div>
-    <p class="banner">${t("app.banner")}</p>
+      </p>
+    </header>
     <div class="tabs">
       <button
         type="button"
@@ -1702,6 +1848,19 @@ function App() {
     ${tab === "tab1"
       ? html`<${Tab1} t=${t} status=${status} />`
       : html`<${Tab2} t=${t} status=${status} />`}
+    <footer class="app-footer">
+      <p class="banner">${t("app.banner")}</p>
+      <div class="lang-row">
+        <label for="app-lang">${t("app.label_lang")}</label>
+        <select
+          id="app-lang"
+          value=${langCode}
+          onChange=${(e) => onLangChange(e.target.value)}
+        >
+          ${LANGS.map((l) => html`<option value=${l.code}>${l.name}</option>`)}
+        </select>
+      </div>
+    </footer>
   `;
 }
 

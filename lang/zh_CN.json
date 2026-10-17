@@ -1,8 +1,10 @@
 {
   "meta": { "code": "zh_CN", "name": "中文" },
   "app": {
-    "title": "MC Tax Free Levels 经验扣除计算器",
-    "version": "0.1.6",
+    "title": "Minecraft Tax Free Levels 经验扣除计算器",
+    "title_main": "Minecraft Tax Free Levels",
+    "title_sub": "经验扣除计算器",
+    "version": "0.1.7",
     "banner": "拖经验条设进度 → 铁砧点成品 / 附魔点选项即算 → Tab2 同口径扫掠曲线",
     "tab1": "单点对比",
     "tab2": "范围曲线",
@@ -36,7 +38,7 @@
     "drag_bar": "拖动经验条调整进度",
     "anvil_cost": "消耗等级",
     "cost_levels_hint": "消耗等级（界面 X）",
-    "cost_range_hint": "拖动经验条，范围 0–40（附魔最高约 30，铁砧 40 级起 Too Expensive）",
+    "cost_range_hint": "拖动经验条，范围 0–{max}（生存铁砧约 40 起 Too Expensive；有去昂贵 mod 时可在下方调高上限）",
     "enchant_req": "附魔需求等级 R",
     "enchant_cost": "附魔选项等级",
     "slot_left": "左边物品",
@@ -91,7 +93,7 @@
     "label_range_max": "扫掠上限",
     "label_mark": "标记等级",
     "hint_mark": "下方经验条 = 标记等级 + 扫掠共用进度；黄虚线标在曲线上",
-    "range_hint": "扫掠 0–200。下限高于上限时，上限会跟着抬到下限；上限低于下限时，下限会跟着降下来",
+    "range_hint": "扫掠 0–{max}。下限高于上限时，上限会跟着抬到下限；上限低于下限时，下限会跟着降下来",
     "summary_toggle": "扫掠摘要（点击展开）",
     "summary_header": "======== 范围曲线 ========",
     "summary_range": "扫掠范围：{min} ~ {max}（采样步长 {step}）",
@@ -100,6 +102,16 @@
     "summary_mode": "模式：{mode}",
     "summary_mark": "标记 lv={mark} → 未扣除 {none} / 不使用模组 {vanilla} / 使用模组 {mod}",
     "summary_hint": "曲线越高表示扣后剩余等级越多；蓝线相对红线越高，模组越划算。改进度后需重新绘制。"
+  },
+  "limits": {
+    "toggle": "上限设置（点击展开）",
+    "hint": "默认按原版常见区间；有去「过于昂贵」等 mod 时可把上限调到离谱数字。改上限只影响本 Tab 滑条，不改公式。",
+    "level_max": "当前等级上限",
+    "level_max_hint": "默认 {def}；控制「你的等级」可填到多高",
+    "cost_max": "消耗等级上限",
+    "cost_max_hint": "默认 {def}；经验瓶 × N 与消耗条的上限",
+    "sweep_max": "扫掠等级上限",
+    "sweep_max_hint": "默认 {def}；扫掠下限/上限与标记等级共用此顶"
   },
   "result": {
     "toggle": "文字计算结果（点击展开）",

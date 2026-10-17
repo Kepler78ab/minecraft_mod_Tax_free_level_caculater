@@ -2,7 +2,9 @@
   "meta": { "code": "en_US", "name": "English" },
   "app": {
     "title": "MC Tax Free Levels XP Calculator",
-    "version": "0.1.6",
+    "title_main": "MC Tax Free Levels",
+    "title_sub": "XP Calculator",
+    "version": "0.1.7",
     "banner": "Drag XP bar → click anvil result / enchant row → Tab2 uses the same progress for sweep curves",
     "tab1": "Single point",
     "tab2": "Range curves",
@@ -36,7 +38,7 @@
     "drag_bar": "Drag the XP bar to set progress",
     "anvil_cost": "Level cost",
     "cost_levels_hint": "Cost levels (UI X)",
-    "cost_range_hint": "Drag the XP bar. Range 0–40 (enchant tops out near 30; anvil is Too Expensive at 40)",
+    "cost_range_hint": "Drag the XP bar. Range 0–{max} (vanilla anvil hits Too Expensive near 40; raise the cap below if a mod removes it)",
     "enchant_req": "Table requirement R",
     "enchant_cost": "Enchant option level",
     "slot_left": "Left item",
@@ -91,7 +93,7 @@
     "label_range_max": "Range max",
     "label_mark": "Mark level",
     "hint_mark": "XP bar below = mark level + shared sweep progress; yellow dashed marks the curve",
-    "range_hint": "Sweep is 0–200. If min rises above max, max follows; if max falls below min, min follows",
+    "range_hint": "Sweep is 0–{max}. If min rises above max, max follows; if max falls below min, min follows",
     "summary_toggle": "Sweep summary (click to expand)",
     "summary_header": "======== Range curves ========",
     "summary_range": "Range: {min} ~ {max} (step {step})",
@@ -100,6 +102,16 @@
     "summary_mode": "Mode: {mode}",
     "summary_mark": "Mark lv={mark} → none {none} / vanilla {vanilla} / mod {mod}",
     "summary_hint": "Higher curve = more levels kept; blue above red means the mod helps. Re-plot after changing progress."
+  },
+  "limits": {
+    "toggle": "Limit settings (click to expand)",
+    "hint": "Defaults match common vanilla ranges. Raise them for ridiculous numbers if a mod removes Too Expensive. Caps only affect this tab’s sliders, not the formulas.",
+    "level_max": "Current level max",
+    "level_max_hint": "Default {def}; how high “Your level” can go",
+    "cost_max": "Cost level max",
+    "cost_max_hint": "Default {def}; bottle × N and cost bar ceiling",
+    "sweep_max": "Sweep level max",
+    "sweep_max_hint": "Default {def}; shared ceiling for sweep min/max and mark level"
   },
   "result": {
     "toggle": "Text result (click to expand)",
