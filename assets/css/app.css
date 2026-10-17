@@ -354,9 +354,16 @@ button:disabled {
   height: 100%;
 }
 
-.gui-slot-clickable {
+.gui-slot-clickable,
+.gui-slot-target {
   pointer-events: auto;
   cursor: pointer;
+}
+
+.gui-slot-target.drop-hover,
+.mc-inv-slot.drop-hover {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
 }
 
 .gui-slot-clickable:hover {
@@ -383,6 +390,48 @@ button:disabled {
   pointer-events: none;
   transform: translate(-50%, -50%);
   filter: drop-shadow(2px 2px 0 #000);
+}
+
+.mc-inv {
+  width: 100%;
+  max-width: 364px;
+}
+
+.mc-inv-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.mc-inv-row {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
+}
+
+.mc-inv-slot {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: #8b8b8b;
+  border: 2px solid #373737;
+  box-shadow: inset 2px 2px 0 #555, inset -2px -2px 0 #eee;
+  cursor: grab;
+  touch-action: none;
+}
+
+.mc-inv-inf {
+  position: absolute;
+  right: 1px;
+  bottom: 0;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 #000;
+  pointer-events: none;
 }
 
 .gui-slot-fly .gui-slot-item {

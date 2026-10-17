@@ -6,6 +6,7 @@ import { drawCurveChart, drawHLineChart } from "./chart-canvas.js";
 import { createI18n, getSavedLang, loadLang, saveLang } from "./i18n.js";
 import {
   IMG,
+  ITEM_POOL,
   McImg,
   ModeIcon,
   SgaText,
@@ -30,12 +31,44 @@ import {
 
 const GUI_SCALE = 2;
 const DRAG_TAKE_PX = 12;
+/** 铁砧 Too Expensive 为 40 级；附魔台绿字最高 30，消耗条用 0–40 */
+const COST_MIN = 0;
+const COST_MAX = 40;
+/** 扫掠覆盖 16/31 经验拐点，又让 182px 经验条能点中每一级 */
+const SWEEP_MIN = 0;
+const SWEEP_MAX = 200;
+
+function clampInt(raw, min, max) {
+  const n = Math.round(Number(raw));
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, n));
+}
 
 function prefersDragTake() {
   return (
     typeof window !== "undefined" &&
     window.matchMedia("(hover: hover) and (pointer: fine)").matches
   );
+}
+
+function starterInv() {
+  const srcs = [
+    ITEM_POOL.weapons[0],
+    ITEM_POOL.books[0],
+    ITEM_POOL.tools[0],
+    ITEM_POOL.armor[0],
+    ITEM_POOL.books[1],
+    ITEM_POOL.weapons[3],
+  ];
+  const cells = srcs.map((src) => ({ src, infinite: true }));
+  while (cells.length < 9) cells.push(null);
+  return cells;
+}
+
+function dropIdAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const node = el && el.closest ? el.closest("[data-drop]") : null;
+  return node ? node.dataset.drop : "";
 }
 const LANGS = [
   { code: "zh_CN", name: "中文" },
@@ -670,6 +703,91 @@ function LevelXpControl({ t, level, setLevel, progress, setProgress, scale = 2 }
   `;
 }
 
+/** 把原版经验条当作 [min, max] 整数滑条，数字可输入 */
+function XpValueBar({ label, value, setValue, min, max, hint }) {
+  const trackRef = useRef(null);
+  const dragging = useRef(false);
+  const n = clampInt(value, min, max);
+  const span = Math.max(1, max - min);
+  const pct = ((n - min) / span) * 100;
+  const w = XP_BAR_W * 2;
+  const h = XP_BAR_H * 2;
+
+  function setFromClientX(clientX) {
+    const el = trackRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
+    setValue(String(min + Math.round(ratio * span)));
+  }
+
+  useEffect(() => {
+    function onMove(e) {
+      if (!dragging.current) return;
+      setFromClientX(e.clientX);
+    }
+    function onUp() {
+      dragging.current = false;
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [min, max]);
+
+  return html`
+    <div class="level-xp-control">
+      <div class="level-xp-head">
+        <span class="level-xp-label">${label}</span>
+        <label class="level-xp-prog">
+          <input
+            type="number"
+            min=${min}
+            max=${max}
+            value=${value}
+            aria-label=${label}
+            onInput=${(e) => setValue(String(clampInt(e.target.value, min, max)))}
+          />
+          <span class="level-xp-need">${min}–${max}</span>
+        </label>
+      </div>
+      <div class="mc-xp mc-xp-editable" title=${hint || ""}>
+        <div
+          class="mc-xp-track mc-xp-track-drag"
+          ref=${trackRef}
+          style=${{ width: `${w}px`, height: `${h}px` }}
+          onPointerDown=${(e) => {
+            dragging.current = true;
+            e.currentTarget.setPointerCapture?.(e.pointerId);
+            setFromClientX(e.clientX);
+          }}
+        >
+          <div
+            class="mc-xp-bg"
+            style=${{
+              backgroundImage: `url(${IMG.xpBarBg})`,
+              backgroundSize: `${w}px ${h}px`,
+            }}
+          ></div>
+          <div class="mc-xp-clip" style=${{ width: `${pct}%` }}>
+            <div
+              class="mc-xp-fill"
+              style=${{
+                width: `${w}px`,
+                height: `${h}px`,
+                backgroundImage: `url(${IMG.xpBarFill})`,
+                backgroundSize: `${w}px ${h}px`,
+              }}
+            ></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function XpBarRow({ icon, label, level, progressPct, tone, hint }) {
   return html`
     <div class=${`xp-row tone-${tone}`}>
@@ -743,14 +861,16 @@ function GuiSlot({
   className = "",
   flying = false,
   lifted = false,
+  dropId = "",
 }) {
   const size = 16 * scale;
   const Tag = onClick || onPointerDown ? "button" : "div";
   return html`
     <${Tag}
       type=${onClick || onPointerDown ? "button" : undefined}
-      class=${`gui-slot ${clickable ? "gui-slot-clickable" : ""} ${flying ? "gui-slot-fly" : ""} ${lifted ? "gui-slot-lifted" : ""} ${className}`.trim()}
+      class=${`gui-slot ${clickable ? "gui-slot-clickable" : ""} ${dropId ? "gui-slot-target" : ""} ${flying ? "gui-slot-fly" : ""} ${lifted ? "gui-slot-lifted" : ""} ${className}`.trim()}
       title=${title}
+      data-drop=${dropId || undefined}
       style=${{ left: `${left}px`, top: `${top}px`, width: `${size}px`, height: `${size}px` }}
       onClick=${onClick}
       onPointerDown=${onPointerDown}
@@ -769,14 +889,24 @@ function GuiSlot({
 }
 
 function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, onCalc }) {
-  const [trio, setTrio] = useState(() => randomAnvilTrio());
+  const dragFine = useMemo(() => prefersDragTake(), []);
+  const [trio, setTrio] = useState(() =>
+    prefersDragTake()
+      ? { left: null, right: null, out: null }
+      : randomAnvilTrio()
+  );
+  const [inv, setInv] = useState(() => (prefersDragTake() ? starterInv() : []));
   const [flying, setFlying] = useState(false);
   const [dragGhost, setDragGhost] = useState(null);
-  const dragFine = useMemo(() => prefersDragTake(), []);
-  const dragRef = useRef(null);
+  const [dropHover, setDropHover] = useState("");
+  const trioRef = useRef(trio);
+  const invRef = useRef(inv);
+  trioRef.current = trio;
+  invRef.current = inv;
   const s = GUI_SCALE;
   const costN = String(cost ?? "").trim() || "—";
   const itemPx = 16 * s;
+  const outSrc = trio.left || null;
 
   function takeResult() {
     if (flying || dragGhost) return;
@@ -787,30 +917,86 @@ function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, 
     }, 280);
   }
 
-  function onResultPointerDown(e) {
+  function beginDrag(e, payload) {
     if (!dragFine || flying) return;
+    if (!payload?.src) return;
     if (e.button != null && e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    dragRef.current = { x: e.clientX, y: e.clientY };
-    setDragGhost({ x: e.clientX, y: e.clientY });
+    setDragGhost({ x: e.clientX, y: e.clientY, src: payload.src });
 
-    function onMove(ev) {
-      if (!dragRef.current) return;
-      setDragGhost({ x: ev.clientX, y: ev.clientY });
-    }
-    function onUp(ev) {
+    function finish(ev) {
       window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      const start = dragRef.current;
-      dragRef.current = null;
+      window.removeEventListener("pointerup", finish);
       setDragGhost(null);
-      if (!start) return;
-      const dist = Math.hypot(ev.clientX - start.x, ev.clientY - start.y);
-      if (dist >= DRAG_TAKE_PX) onCalc();
+      setDropHover("");
+      const dist = Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY);
+      if (dist < DRAG_TAKE_PX) return;
+      const target = dropIdAt(ev.clientX, ev.clientY);
+      applyDrop(payload, target);
+    }
+    function onMove(ev) {
+      setDragGhost({ x: ev.clientX, y: ev.clientY, src: payload.src });
+      setDropHover(dropIdAt(ev.clientX, ev.clientY));
     }
     window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointerup", finish);
+  }
+
+  function applyDrop(payload, target) {
+    const curTrio = { ...trioRef.current };
+    const curInv = invRef.current.slice();
+    const invIndex = target.startsWith("inv-") ? Number(target.slice(4)) : -1;
+    const validInv = Number.isInteger(invIndex) && invIndex >= 0 && invIndex <= 8;
+
+    if (payload.from === "anvil-out") {
+      if (!validInv) return;
+      curInv[invIndex] = { src: payload.src, infinite: false };
+      setInv(curInv);
+      onCalc();
+      return;
+    }
+
+    if (
+      validInv &&
+      (payload.from === "anvil-left" || payload.from === "anvil-right")
+    ) {
+      const srcKey = payload.from === "anvil-left" ? "left" : "right";
+      curInv[invIndex] = { src: payload.src, infinite: false };
+      curTrio[srcKey] = null;
+      curTrio.out = curTrio.left;
+      setTrio(curTrio);
+      setInv(curInv);
+      return;
+    }
+
+    if (target === "anvil-left" || target === "anvil-right") {
+      const key = target === "anvil-left" ? "left" : "right";
+      if (payload.from === "anvil-left" || payload.from === "anvil-right") {
+        const srcKey = payload.from === "anvil-left" ? "left" : "right";
+        if (srcKey === key) return;
+        curTrio[srcKey] = null;
+      }
+      curTrio[key] = payload.src;
+      curTrio.out = curTrio.left;
+      setTrio(curTrio);
+      if (payload.from === "inv" && !payload.infinite) {
+        curInv[payload.invIndex] = null;
+        setInv(curInv);
+      }
+      return;
+    }
+
+    if (payload.from === "inv" && validInv && invIndex !== payload.invIndex) {
+      if (payload.infinite) {
+        curInv[invIndex] = { src: payload.src, infinite: true };
+      } else {
+        const prev = curInv[invIndex];
+        curInv[invIndex] = curInv[payload.invIndex];
+        curInv[payload.invIndex] = prev || null;
+      }
+      setInv(curInv);
+    }
   }
 
   return html`
@@ -827,35 +1013,54 @@ function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, 
         <${GuiSlot}
           left=${27 * s}
           top=${47 * s}
-          title=${t("gui.slot_reroll")}
+          title=${dragFine ? t("gui.slot_drop_left") : t("gui.slot_reroll")}
           src=${trio.left}
           clickable=${true}
-          onClick=${() => setTrio(randomAnvilTrio())}
+          lifted=${dragGhost && dragGhost.src === trio.left}
+          className=${dropHover === "anvil-left" ? "drop-hover" : ""}
+          dropId="anvil-left"
+          onClick=${dragFine ? undefined : () => setTrio(randomAnvilTrio())}
+          onPointerDown=${
+            dragFine && trio.left
+              ? (e) => beginDrag(e, { src: trio.left, from: "anvil-left" })
+              : undefined
+          }
         />
         <${GuiSlot}
           left=${76 * s}
           top=${47 * s}
-          title=${t("gui.slot_reroll")}
+          title=${dragFine ? t("gui.slot_drop_right") : t("gui.slot_reroll")}
           src=${trio.right}
           clickable=${true}
-          onClick=${() => setTrio(randomAnvilTrio())}
+          className=${dropHover === "anvil-right" ? "drop-hover" : ""}
+          dropId="anvil-right"
+          onClick=${dragFine ? undefined : () => setTrio(randomAnvilTrio())}
+          onPointerDown=${
+            dragFine && trio.right
+              ? (e) => beginDrag(e, { src: trio.right, from: "anvil-right" })
+              : undefined
+          }
         />
         <${GuiSlot}
           left=${134 * s}
           top=${47 * s}
           title=${dragFine ? t("gui.slot_take_drag") : t("gui.slot_take")}
-          src=${trio.out}
+          src=${outSrc}
           clickable=${true}
           flying=${flying}
-          lifted=${!!dragGhost}
+          lifted=${!!dragGhost && dragGhost.src === outSrc}
           className=${dragFine ? "gui-slot-out gui-slot-drag-mode" : "gui-slot-out"}
           onClick=${dragFine ? undefined : takeResult}
-          onPointerDown=${dragFine ? onResultPointerDown : undefined}
+          onPointerDown=${
+            dragFine && outSrc
+              ? (e) => beginDrag(e, { src: outSrc, from: "anvil-out" })
+              : undefined
+          }
         />
         ${dragGhost &&
         html`<img
           class="mc-pixel gui-drag-ghost"
-          src=${trio.out}
+          src=${dragGhost.src}
           alt=""
           width=${itemPx}
           height=${itemPx}
@@ -886,6 +1091,46 @@ function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, 
           ${t("gui.enchantment_cost", { cost: costN })}
         </div>
       </div>
+      ${dragFine &&
+      html`
+        <div class="mc-inv">
+          <div class="mc-inv-label">${t("gui.inv_title")}</div>
+          <div class="mc-inv-row">
+            ${inv.map(
+              (cell, i) => html`
+                <button
+                  type="button"
+                  class=${`mc-inv-slot ${dropHover === `inv-${i}` ? "drop-hover" : ""}`}
+                  data-drop=${`inv-${i}`}
+                  title=${cell?.infinite ? t("gui.inv_infinite") : t("gui.inv_slot")}
+                  onPointerDown=${
+                    cell
+                      ? (e) =>
+                          beginDrag(e, {
+                            src: cell.src,
+                            from: "inv",
+                            invIndex: i,
+                            infinite: !!cell.infinite,
+                          })
+                      : undefined
+                  }
+                >
+                  ${cell &&
+                  html`<img
+                    class="mc-pixel"
+                    src=${cell.src}
+                    alt=""
+                    width="32"
+                    height="32"
+                    draggable=${false}
+                  />`}
+                  ${cell?.infinite && html`<span class="mc-inv-inf">∞</span>`}
+                </button>
+              `
+            )}
+          </div>
+        </div>
+      `}
       <${LevelXpControl}
         t=${t}
         level=${level}
@@ -893,20 +1138,15 @@ function AnvilPanel({ t, level, setLevel, progress, setProgress, cost, setCost, 
         progress=${progress}
         setProgress=${setProgress}
       />
-      <div class="cost-bottle-row">
-        <${McImg} src=${IMG.xpBottle} size=${28} alt="" />
-        <span class="cost-bottle-x">×</span>
-        <input
-          class="cost-bottle-input"
-          type="number"
-          min="0"
-          value=${cost}
-          onInput=${(e) => setCost(e.target.value)}
-          aria-label=${t("gui.anvil_cost")}
-        />
-        <span class="cost-bottle-hint">${t("gui.cost_levels_hint")}</span>
-      </div>
-      <p class="mc-gui-tip">${dragFine ? t("gui.anvil_tip_drag") : t("gui.anvil_tip")}</p>
+      <${XpValueBar}
+        label=${t("gui.anvil_cost")}
+        hint=${t("gui.cost_range_hint")}
+        value=${cost}
+        setValue=${setCost}
+        min=${COST_MIN}
+        max=${COST_MAX}
+      />
+      <p class="mc-gui-tip">${dragFine ? t("gui.anvil_tip_inv") : t("gui.anvil_tip")}</p>
     </div>
   `;
 }
@@ -1283,19 +1523,14 @@ function Tab2({ t, status }) {
         <p class="hint-block">${t("tab2.banner")}</p>
         <${ModePicker} t=${t} mode=${mode} setMode=${setMode} />
         <div class="tab2-fields">
-          <div class="cost-bottle-row">
-            <${McImg} src=${IMG.xpBottle} size=${28} alt="" />
-            <span class="cost-bottle-x">×</span>
-            <input
-              class="cost-bottle-input"
-              type="number"
-              min="0"
-              value=${cost}
-              onInput=${(e) => setCost(e.target.value)}
-              aria-label=${t("app.label_cost")}
-            />
-            <span class="cost-bottle-hint">${t("gui.cost_levels_hint")}</span>
-          </div>
+          <${XpValueBar}
+            label=${t("app.label_cost")}
+            hint=${t("gui.cost_range_hint")}
+            value=${cost}
+            setValue=${setCost}
+            min=${COST_MIN}
+            max=${COST_MAX}
+          />
           ${mode === MODE_ENCHANT &&
           html`
             <label class="enchant-req-field">
@@ -1306,14 +1541,30 @@ function Tab2({ t, status }) {
               />
             </label>
           `}
-          <div class="field">
-            <label>${t("tab2.label_range_min")}</label>
-            <input value=${levelMin} onInput=${(e) => setLevelMin(e.target.value)} />
-          </div>
-          <div class="field">
-            <label>${t("tab2.label_range_max")}</label>
-            <input value=${levelMax} onInput=${(e) => setLevelMax(e.target.value)} />
-          </div>
+          <${XpValueBar}
+            label=${t("tab2.label_range_min")}
+            hint=${t("tab2.range_hint")}
+            value=${levelMin}
+            setValue=${(raw) => {
+              const n = clampInt(raw, SWEEP_MIN, SWEEP_MAX);
+              setLevelMin(String(n));
+              if (n > clampInt(levelMax, SWEEP_MIN, SWEEP_MAX)) setLevelMax(String(n));
+            }}
+            min=${SWEEP_MIN}
+            max=${SWEEP_MAX}
+          />
+          <${XpValueBar}
+            label=${t("tab2.label_range_max")}
+            hint=${t("tab2.range_hint")}
+            value=${levelMax}
+            setValue=${(raw) => {
+              const n = clampInt(raw, SWEEP_MIN, SWEEP_MAX);
+              setLevelMax(String(n));
+              if (n < clampInt(levelMin, SWEEP_MIN, SWEEP_MAX)) setLevelMin(String(n));
+            }}
+            min=${SWEEP_MIN}
+            max=${SWEEP_MAX}
+          />
           <p class="hint">${t("tab2.hint_mark")}</p>
           <${LevelXpControl}
             t=${t}
