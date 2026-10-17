@@ -1,0 +1,60 @@
+{
+  "meta": { "code": "en_US", "name": "English" },
+  "app": {
+    "title": "MC Tax Free Levels XP Calculator",
+    "version": "0.1.0",
+    "banner": "Vanilla XP 1.8+ | Tax Free Levels | start / almost-full average | Web is source of truth",
+    "label_level": "Current level",
+    "hint_level": "Progress uses level start and almost-full",
+    "label_cost": "Vanilla cost levels X",
+    "label_mode": "Mode",
+    "label_enchant_req": "Enchant requirement R",
+    "btn_calc": "Calculate",
+    "btn_clear": "Clear",
+    "label_lang": "Language",
+    "plot_title_empty": "Click Calculate to draw lines",
+    "self_check_ok": "Self-check passed",
+    "self_check_fail": "Self-check failed: {msg}"
+  },
+  "mode": {
+    "anvil": "Anvil (0 → X)",
+    "enchant": "Enchanting table (R-X → R)",
+    "base30": "Legacy / levelBase=30 (30-X → 30)"
+  },
+  "plot": {
+    "ylabel": "Level",
+    "legend_none": "No cost y=lv",
+    "legend_vanilla": "Without mod y=lv−lv_cost",
+    "legend_mod": "With mod y=f(lv)",
+    "title": "lv={lv} | lv_cost={cost} | {mode}"
+  },
+  "result": {
+    "header": "======== Result ========",
+    "footer": "========================",
+    "mode": "Mode: {mode}",
+    "level_cost": "Current level: {level} | Vanilla cost X: {cost}",
+    "enchant_req": "Enchant requirement R: {req}",
+    "pay_xp": "Mod flat XP cost: {pay}",
+    "bar_full": "XP to next: {need} (end progress = {endProg})",
+    "start_header": "[Level start (progress=0)]",
+    "end_header": "[Almost full]",
+    "block": "  Before: lv {beforeLevel} + progress {beforeProgress} (total {beforeTotal})\n  Mod XP: {payXp}\n  After: lv {afterLevel} + progress {afterProgress} (total {afterTotal})\n  Levels lost: {deltaLevel}\n  Progress XP delta: {deltaProgress}\n  Total XP spent: {actualSpent}",
+    "avg_header": "[Average]",
+    "avg_delta_level": "  Levels lost (avg): {v}",
+    "avg_delta_progress": "  Progress XP delta (avg): {v}",
+    "avg_spent": "  Total XP spent (avg): {v}",
+    "avg_remain": "  Avg remaining XP ≈ {total} → about lv {lv} + progress {prog}",
+    "compare_header": "[With mod vs without]",
+    "compare_vanilla": "  Without mod: after = {after} (y = lv − {cost}), levels lost = {delta}",
+    "compare_mod": "  With mod: after (avg) = {avg} (start {start} / end {end}), levels lost (avg) = {delta}",
+    "compare_diff": "  Diff: mod keeps about {diff} more levels"
+  },
+  "errors": {
+    "empty": "{name} is required",
+    "not_int": "{name} must be an integer",
+    "negative": "{name} cannot be negative",
+    "name_level": "Current level",
+    "name_cost": "Vanilla cost levels",
+    "name_enchant": "Enchant requirement"
+  }
+}

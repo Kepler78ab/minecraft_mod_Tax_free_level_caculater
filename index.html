@@ -1,1 +1,28 @@
-
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Minecraft Tax Free Levels experience calculator — compare vanilla vs mod XP cost (Web 0.1.0)."
+    />
+    <title>MC Tax Free Levels 经验扣除计算器</title>
+    <link rel="stylesheet" href="./assets/css/app.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "preact": "./src/lib/preact.js",
+          "preact/hooks": "./src/lib/hooks.js",
+          "htm": "./src/lib/htm.js",
+          "htm/preact": "./src/lib/htm-preact.js"
+        }
+      }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./assets/js/app.js"></script>
+  </body>
+</html>

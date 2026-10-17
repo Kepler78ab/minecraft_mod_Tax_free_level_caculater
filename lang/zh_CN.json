@@ -1,0 +1,60 @@
+{
+  "meta": { "code": "zh_CN", "name": "中文" },
+  "app": {
+    "title": "MC Tax Free Levels 经验扣除计算器",
+    "version": "0.1.0",
+    "banner": "原版 XP 曲线 1.8+｜Tax Free Levels｜进度取刚开始 / 刚结束并平均｜Web 为准",
+    "label_level": "当前等级",
+    "hint_level": "进度自动取本级起点与将满终点",
+    "label_cost": "原版扣除等级 X",
+    "label_mode": "计算模式",
+    "label_enchant_req": "附魔需求等级 R",
+    "btn_calc": "计算",
+    "btn_clear": "清空结果",
+    "label_lang": "语言",
+    "plot_title_empty": "点击「计算」显示对比线",
+    "self_check_ok": "公式自检通过",
+    "self_check_fail": "公式自检失败：{msg}"
+  },
+  "mode": {
+    "anvil": "铁砧（0 → X）",
+    "enchant": "附魔台（R-X → R）",
+    "base30": "旧版 / levelBase=30（30-X → 30）"
+  },
+  "plot": {
+    "ylabel": "等级",
+    "legend_none": "未扣除 y=lv",
+    "legend_vanilla": "不使用模组 y=lv−lv_cost",
+    "legend_mod": "使用模组 y=f(lv)",
+    "title": "lv={lv}｜lv_cost={cost}｜{mode}"
+  },
+  "result": {
+    "header": "======== 计算结果 ========",
+    "footer": "========================",
+    "mode": "模式：{mode}",
+    "level_cost": "当前等级：{level}｜原版扣除等级 X：{cost}",
+    "enchant_req": "附魔需求等级 R：{req}",
+    "pay_xp": "模组固定扣费 XP：{pay}",
+    "bar_full": "本级满条所需：{need} XP（刚结束进度取 {endProg}）",
+    "start_header": "【刚开始（进度=0）】",
+    "end_header": "【刚结束（进度将满）】",
+    "block": "  扣前：{beforeLevel} 级 + 进度 {beforeProgress} XP（总 {beforeTotal}）\n  模组应付：{payXp} XP\n  扣后：{afterLevel} 级 + 进度 {afterProgress} XP（总 {afterTotal}）\n  实扣等级：{deltaLevel}\n  实扣进度经验：{deltaProgress}\n  实扣总 XP：{actualSpent}",
+    "avg_header": "【平均值】",
+    "avg_delta_level": "  实扣等级（平均）：{v}",
+    "avg_delta_progress": "  实扣进度经验（平均）：{v}",
+    "avg_spent": "  实扣总 XP（平均）：{v}",
+    "avg_remain": "  平均剩余总经验 ≈ {total} → 约 {lv} 级 + 进度 {prog} XP",
+    "compare_header": "【使用模组 vs 不使用模组】",
+    "compare_vanilla": "  不使用模组：扣后等级 = {after}（y = lv − {cost}），实扣等级 = {delta}",
+    "compare_mod": "  使用模组：扣后等级（平均）= {avg}（刚开始 {start} / 刚结束 {end}），实扣等级（平均）= {delta}",
+    "compare_diff": "  差异：使用模组比不使用模组多保留约 {diff} 级"
+  },
+  "errors": {
+    "empty": "{name}不能为空",
+    "not_int": "{name}必须是整数",
+    "negative": "{name}不能为负",
+    "name_level": "当前等级",
+    "name_cost": "原版扣除等级",
+    "name_enchant": "附魔需求等级"
+  }
+}
